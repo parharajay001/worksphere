@@ -11,5 +11,14 @@ export const registrationSchema = z.strictObject({
 
 export const loginSchema = z.strictObject({ email, password });
 
+export const tokenSchema = z.strictObject({
+  token: z.string().min(40).max(128),
+});
+export const passwordResetSchema = z.strictObject({
+  token: z.string().min(40).max(128),
+  password,
+});
+export const emailSchema = z.strictObject({ email });
+
 export type RegistrationInput = z.infer<typeof registrationSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

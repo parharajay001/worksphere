@@ -15,6 +15,11 @@ enum MembershipRole {
   VIEWER
 }
 
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 model User {
   id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email           String       @unique @db.VarChar(254)
@@ -26,6 +31,21 @@ model User {
   accounts        Account[]
   sessions        Session[]
   memberships     Membership[]
+  authTokens      AuthToken[]
+}
+
+model AuthToken {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String        @db.Uuid
+  type       AuthTokenType
+  tokenHash  String        @unique @db.VarChar(64)
+  expiresAt  DateTime      @db.Timestamptz(3)
+  consumedAt DateTime?     @db.Timestamptz(3)
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
 }
 
 model Account {

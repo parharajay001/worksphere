@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 4 — authentication foundation.**
+**Current milestone: Day 5 — authentication hardening.**
 
 ## Local setup
 
@@ -71,8 +71,8 @@ for a later milestone. Both development and production use port 3000 by default.
 database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
-Authentication is available at `/login`, `/register`, and `/dashboard`. See the
-[authentication reference](docs/auth.md) and [Day 4 verification](docs/day-04.md).
+Authentication is available at `/login`, `/register`, and `/dashboard`. Email
+verification and password reset APIs are documented in [Day 5 verification](docs/day-05.md).
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
