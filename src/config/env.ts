@@ -1,6 +1,21 @@
 import { z } from "zod";
 
-const environmentSchema = z.object({
+const databaseEnvironmentSchema = z.object({
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).refine((value) => {
+    if (!URL.canParse(value)) return false;
+    const url = new URL(value);
+    const schema = url.searchParams.get("schema") ?? "public";
+    return Boolean(
+      url.hostname &&
+      url.username &&
+      /^\/[^/]+$/.test(url.pathname) &&
+      !url.hash &&
+      /^[a-z_][a-z0-9_]*$/.test(schema),
+    );
+  }, "Must be a PostgreSQL connection URL with a host, user, database, and valid schema"),
+});
+
+const environmentSchema = databaseEnvironmentSchema.extend({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -19,10 +34,23 @@ const environmentSchema = z.object({
 
 export type Environment = z.infer<typeof environmentSchema>;
 
+export function parseDatabaseEnvironment(
+  values: Record<string, string | undefined>,
+) {
+  return parseConfiguration(databaseEnvironmentSchema, values);
+}
+
 export function parseEnvironment(
   values: Record<string, string | undefined>,
 ): Environment {
-  const result = environmentSchema.safeParse(values);
+  return parseConfiguration(environmentSchema, values);
+}
+
+function parseConfiguration<T>(
+  schema: z.ZodType<T>,
+  values: Record<string, string | undefined>,
+): T {
+  const result = schema.safeParse(values);
 
   if (!result.success) {
     const fields = [
