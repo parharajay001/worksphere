@@ -15,7 +15,7 @@ const database = createDatabaseClient(DATABASE_URL);
 try {
   const result = await seedDevelopmentData(database);
   console.log(
-    `Seed ready: ${result.organization}, ${result.users} demo users. No login credentials created.`,
+    `Seed ready: ${result.organizations.join(", ")}, ${result.users} demo users. No login credentials created.`,
   );
 } catch {
   console.error(

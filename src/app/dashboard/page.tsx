@@ -1,12 +1,17 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "../../modules/auth/session.ts";
 import { SignOutButton } from "../../components/sign-out-button";
+import { getOrganizations } from "../../modules/organizations/organization.service.ts";
+import { getActiveOrganization } from "../../modules/organizations/active-organization.ts";
+import { OrganizationSwitcher } from "../../components/organization-switcher";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  const memberships = await getOrganizations(user.id);
+  const activeOrganization = await getActiveOrganization(user.id);
   return (
     <div className="overview protected-overview">
       <p className="eyebrow accent">Private workspace</p>
@@ -17,6 +22,10 @@ export default async function DashboardPage() {
         You’re signed in as {user.email}. Organization setup arrives on Day 6.
       </p>
       <SignOutButton />
+      <OrganizationSwitcher
+        organizations={memberships.map(({ organization }) => organization)}
+        activeId={activeOrganization?.id}
+      />
     </div>
   );
 }

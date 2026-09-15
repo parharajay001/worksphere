@@ -637,6 +637,27 @@ h3 {
 .protected-overview {
   padding-top: 100px;
 }
+.org-switcher {
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+  margin: 24px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.org-switcher select {
+  border: 1px solid #d4d8cd;
+  border-radius: 4px;
+  padding: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: 14px var(--body-font);
+  text-transform: none;
+  letter-spacing: 0;
+}
 @media (max-width: 760px) {
   .auth-page {
     min-height: calc(100svh - 72px);
