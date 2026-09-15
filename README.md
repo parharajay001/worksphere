@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 2 — PostgreSQL and ORM foundation.**
+**Current milestone: Day 3 — API and validation foundation.**
 
 ## Local setup
 
@@ -59,12 +59,16 @@ for a later milestone. Both development and production use port 3000 by default.
 | `npm run format`       | Format source and documentation                                  |
 | `npm run format:check` | Verify formatting without editing files                          |
 | `npm run typecheck`    | Generate Next.js route types and check strict TypeScript         |
-| `npm test`             | Run focused environment-validation tests with Node's test runner |
+| `npm test`             | Run environment and API foundation tests with Node's test runner |
 | `npm run build`        | Create the production build                                      |
 | `npm run start`        | Serve an existing production build                               |
 | `npm run check`        | Run lint, formatting, typecheck, tests, and build in sequence    |
 
 ### Database commands
+
+`npm run test:api` verifies the built app's HTTP routes, request logs, and
+database-failure behavior using temporary local production servers. Run
+`npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -103,6 +107,8 @@ src/
   config/              Typed environment validation
   database/            Server-only Prisma factory and development singleton
   generated/prisma/    Generated Prisma Client (ignored by Git)
+  lib/api/             Request boundary, responses, typed errors, validation
+  lib/logging/         Structured request completion logging
   modules/             Domain features, added on their scheduled days
 prisma/                Schema, versioned SQL migrations, and local seed
 scripts/               Local setup helpers
@@ -152,23 +158,28 @@ Or in PowerShell: `Invoke-RestMethod http://localhost:3000/api/health`.
 
 ```json
 {
-  "status": "ok",
-  "service": "worksphere",
-  "timestamp": "2026-09-15T00:00:00.000Z"
+  "data": {
+    "status": "ok",
+    "service": "worksphere",
+    "timestamp": "2026-09-15T00:00:00.000Z"
+  },
+  "meta": { "requestId": "9c7abddb-a568-4cc2-8b4e-b7d5cbb63f21" }
 }
 ```
 
 The timestamp is generated for each request. This public endpoint checks
 application liveness only and exposes no configuration or credentials.
-Run `npm run db:check` for a separate local database connectivity check; public
-readiness endpoints remain part of the later production engineering work.
+Add `?check=database` for a minimal PostgreSQL connectivity check (200/503), or
+run `npm run db:check` for local model counts. Health fields now live under
+`data`; responses also include an `X-Request-ID` header matching `meta.requestId`.
+See [API contracts, validation, errors, and logging](docs/api.md).
 
 ## Branching and contributions
 
 `main` is the stable branch. Create short-lived branches from it:
 
 ```sh
-git switch -c feat/day-02-postgresql
+git switch -c feat/day-03-api-foundation
 ```
 
 Use `feat/<scope>`, `fix/<scope>`, or `chore/<scope>`. Keep each branch focused on
@@ -176,14 +187,15 @@ one milestone, run `npm run check`, and merge through a reviewed pull request
 once a remote exists. Use commit subjects such as
 `chore: establish day 1 foundation`. No `develop` branch is needed.
 
-The repository is initialized locally; no remote or hosting deployment is
-configured. See [Day 1 evidence](docs/day-01.md), [Day 2 evidence](docs/day-02.md),
-and [database design and migration conventions](docs/database.md).
+Feature branches are merged into `main` through pull requests. Cloud deployment
+remains a later milestone. See [Day 1 evidence](docs/day-01.md),
+[Day 2 evidence](docs/day-02.md), [Day 3 evidence](docs/day-03.md), and
+[database design and migration conventions](docs/database.md).
 
 ## Next milestone
 
-Day 3 adds the general API validation/error/logging conventions. Authentication,
-tenant access enforcement, RBAC, project CRUD, Redis, workers, full application
+Day 4 adds authentication using the API and database foundations. Tenant access
+enforcement, RBAC, project CRUD, Redis, workers, full application
 containerization, and CI/CD remain on their scheduled days. Day 2's Compose file
 runs only local PostgreSQL.
 
