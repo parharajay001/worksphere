@@ -19,6 +19,11 @@ enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
 }
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
 
 model User {
   id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -32,6 +37,8 @@ model User {
   sessions        Session[]
   memberships     Membership[]
   authTokens      AuthToken[]
+  sentInvitations Invitation[] @relation("InvitationInviter")
+  teamMemberships TeamMembership[]
 }
 
 model AuthToken {
@@ -81,6 +88,8 @@ model Organization {
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
   memberships Membership[]
+  invitations  Invitation[]
+  teams        Team[]
 }
 
 model Membership {
@@ -94,5 +103,47 @@ model Membership {
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @db.Uuid
+  inviterId      String           @db.Uuid
+  email          String           @db.VarChar(254)
+  role           MembershipRole   @default(MEMBER)
+  tokenHash      String           @unique @db.VarChar(64)
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime         @db.Timestamptz(3)
+  acceptedAt     DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  @@index([organizationId, status])
+  @@index([email, status])
+  @@index([expiresAt])
+}
+
+model Team {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @db.Uuid
+  name           String           @db.VarChar(100)
+  slug           String           @db.VarChar(63)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    TeamMembership[]
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model TeamMembership {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([teamId, userId])
   @@index([userId])
 }
