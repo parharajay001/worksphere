@@ -1,0 +1,22 @@
+name: worksphere
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: worksphere
+      POSTGRES_PASSWORD: worksphere_local
+      POSTGRES_DB: worksphere
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worksphere -d worksphere"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  postgres_data:

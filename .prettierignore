@@ -4,4 +4,5 @@ out/
 coverage/
 package-lock.json
 next-env.d.ts
+src/generated/prisma/
 *.tsbuildinfo

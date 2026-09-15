@@ -1,21 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseEnvironment } from "../src/config/env.ts";
+import {
+  parseDatabaseEnvironment,
+  parseEnvironment,
+} from "../src/config/env.ts";
+
+const DATABASE_URL =
+  "postgresql://local:local@localhost:54329/worksphere?schema=public";
 
 test("accepts local and deployed origins and strips unrelated environment variables", () => {
   assert.deepEqual(
     parseEnvironment({
       APP_URL: "http://localhost:3000",
+      DATABASE_URL,
       UNRELATED_SECRET: "private",
     }),
     {
       NODE_ENV: "development",
+      DATABASE_URL,
       APP_URL: "http://localhost:3000",
     },
   );
   assert.equal(
     parseEnvironment({
       APP_URL: "https://worksphere.example",
+      DATABASE_URL,
       NODE_ENV: "production",
     }).NODE_ENV,
     "production",
@@ -33,7 +42,7 @@ test("rejects missing, empty, malformed, and non-HTTP origins", () => {
     "https://example.com/#fragment",
   ]) {
     assert.throws(
-      () => parseEnvironment({ APP_URL }),
+      () => parseEnvironment({ APP_URL, DATABASE_URL }),
       /Invalid environment: APP_URL/,
     );
   }
@@ -44,6 +53,7 @@ test("rejects unsupported execution modes", () => {
     () =>
       parseEnvironment({
         APP_URL: "http://localhost:3000",
+        DATABASE_URL,
         NODE_ENV: "staging",
       }),
     /Invalid environment: NODE_ENV/,
@@ -53,7 +63,10 @@ test("rejects unsupported execution modes", () => {
 test("validation errors never echo secret-bearing values", () => {
   assert.throws(
     () =>
-      parseEnvironment({ APP_URL: "https://user:super-secret@example.com" }),
+      parseEnvironment({
+        APP_URL: "https://user:super-secret@example.com",
+        DATABASE_URL,
+      }),
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.match(error.message, /APP_URL/);
@@ -61,4 +74,38 @@ test("validation errors never echo secret-bearing values", () => {
       return true;
     },
   );
+});
+
+test("accepts PostgreSQL URLs independently of app configuration", () => {
+  assert.deepEqual(parseDatabaseEnvironment({ DATABASE_URL }), {
+    DATABASE_URL,
+  });
+  assert.equal(
+    parseDatabaseEnvironment({
+      DATABASE_URL: "postgres://local@localhost/worksphere",
+    }).DATABASE_URL,
+    "postgres://local@localhost/worksphere",
+  );
+});
+
+test("rejects missing, malformed, non-Postgres, and incomplete database URLs", () => {
+  for (const value of [
+    undefined,
+    "",
+    "invalid",
+    "https://user:secret@localhost/database",
+    "postgresql://localhost/database",
+    "postgresql://user:secret@localhost/",
+    "postgresql://user:secret@localhost/db?schema=bad-name",
+  ]) {
+    assert.throws(
+      () => parseDatabaseEnvironment({ DATABASE_URL: value }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Invalid environment: DATABASE_URL/);
+        assert.ok(!error.message.includes("secret"));
+        return true;
+      },
+    );
+  }
 });
