@@ -28,6 +28,7 @@ export async function createSession(userId: string): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
+    priority: "high",
   });
 }
 
@@ -45,6 +46,7 @@ export async function clearSession(): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    priority: "high",
   });
 }
 

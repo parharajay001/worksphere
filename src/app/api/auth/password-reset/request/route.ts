@@ -1,21 +1,23 @@
 import { createApiHandler } from "@/lib/api/handler";
 import { parseJson } from "@/lib/api/validation";
 import { success } from "@/lib/api/response";
-import { loginSchema } from "@/modules/auth/auth.schemas";
-import { login } from "@/modules/auth/auth.service";
+import { emailSchema } from "@/modules/auth/auth.schemas";
+import { requestPasswordReset } from "@/modules/auth/auth.service";
 import { enforceAuthRateLimit } from "@/modules/auth/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
 export const POST = createApiHandler(
-  { route: "/api/auth/login" },
+  { route: "/api/auth/password-reset/request" },
   async (request) => {
-    const input = await parseJson(request, loginSchema);
+    const input = await parseJson(request, emailSchema);
     enforceAuthRateLimit(
-      "login",
+      "recovery",
       `${request.headers.get("x-forwarded-for") ?? "unknown"}:${input.email}`,
     );
-    return success({ user: await login(input) });
+    await requestPasswordReset(input.email);
+    return success({
+      message: "If an account exists, reset instructions will be sent.",
+    });
   },
 );

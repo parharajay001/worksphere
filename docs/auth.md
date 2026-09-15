@@ -1,6 +1,7 @@
 # Authentication foundation
 
-Day 4 adds credentials authentication behind the existing API boundary. The
+Day 4 adds credentials authentication behind the existing API boundary. Day 5
+adds one-time verification/reset tokens and abuse controls. The
 module is server-only and keeps password hashing, session storage, and cookie
 policy out of route components.
 
@@ -25,8 +26,8 @@ Passwords use Node's asynchronous `scrypt` with a random 16-byte salt and a
 64-byte derived key. The stored format is `scrypt$<salt>$<derived-key>` using
 base64url encoding. Verification compares derived keys with `timingSafeEqual`.
 Password input is 12–128 characters and is never logged, returned, or persisted
-as plaintext. Spaces remain valid passphrase characters. Email verification,
-reset flows, breached-password checks, and cost tuning are Day 5 work.
+as plaintext. Spaces remain valid passphrase characters. See [Day 5 verification](day-05.md)
+for verification/reset token and rate-limit decisions.
 
 ## Sessions and cookies
 
@@ -54,9 +55,8 @@ storage.
 
 Auth routes inherit Day 3's 64 KiB JSON limit, strict unknown-field checks,
 generic validation details, request IDs, safe logs, and opaque internal errors.
-Credentials never appear in errors or logs. Rate limiting, CSRF hardening,
-email verification/reset, and brute-force controls are Day 5 work; a valid
-session is not organization authorization.
+Credentials never appear in errors or logs. A valid session is not organization
+authorization; rate limits are local until the Redis milestone.
 
 ## Verification
 

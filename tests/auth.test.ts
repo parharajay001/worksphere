@@ -5,6 +5,11 @@ import {
   loginSchema,
   registrationSchema,
 } from "../src/modules/auth/auth.schemas.ts";
+import { AppError } from "../src/lib/api/errors.ts";
+import {
+  clearAuthRateLimits,
+  enforceAuthRateLimit,
+} from "../src/modules/auth/rate-limit.ts";
 
 test("password hashes are salted, non-reversible, and verify safely", async () => {
   const first = await hashPassword("correct horse battery staple");
@@ -56,4 +61,18 @@ test("auth schemas normalize valid credentials and reject weak or unknown input"
       extra: true,
     }),
   );
+});
+
+test("sensitive auth actions are rate limited with a retry hint", () => {
+  clearAuthRateLimits();
+  for (let attempt = 0; attempt < 10; attempt += 1)
+    enforceAuthRateLimit("login", "test-client");
+  assert.throws(
+    () => enforceAuthRateLimit("login", "test-client"),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === "RATE_LIMITED" &&
+      new Headers(error.headers).has("Retry-After"),
+  );
+  clearAuthRateLimits();
 });
