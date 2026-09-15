@@ -10,6 +10,10 @@ import {
   clearAuthRateLimits,
   enforceAuthRateLimit,
 } from "../src/modules/auth/rate-limit.ts";
+import {
+  hasPermission,
+  permissionsForRole,
+} from "../src/modules/authorization/permissions.ts";
 
 test("password hashes are salted, non-reversible, and verify safely", async () => {
   const first = await hashPassword("correct horse battery staple");
@@ -75,4 +79,15 @@ test("sensitive auth actions are rate limited with a retry hint", () => {
       new Headers(error.headers).has("Retry-After"),
   );
   clearAuthRateLimits();
+});
+
+test("RBAC permission matrix grants least privilege by role", () => {
+  assert.equal(hasPermission("OWNER", "organization:delete"), true);
+  assert.equal(hasPermission("ADMIN", "organization:delete"), false);
+  assert.equal(hasPermission("MANAGER", "projects:manage"), true);
+  assert.equal(hasPermission("MEMBER", "projects:manage"), false);
+  assert.equal(hasPermission("VIEWER", "organization:update"), false);
+  assert.ok(
+    permissionsForRole("OWNER").length > permissionsForRole("VIEWER").length,
+  );
 });

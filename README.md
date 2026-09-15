@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 7 — tenant isolation.**
+**Current milestone: Day 8 — role-based access control.**
 
 ## Local setup
 
@@ -59,7 +59,7 @@ for a later milestone. Both development and production use port 3000 by default.
 | `npm run format`       | Format source and documentation                                    |
 | `npm run format:check` | Verify formatting without editing files                            |
 | `npm run typecheck`    | Generate Next.js route types and check strict TypeScript           |
-| `npm test`             | Run environment, API, and authentication unit tests                |
+| `npm test`             | Run environment, API, authentication, and RBAC unit tests          |
 | `npm run test:auth`    | Verify registration, login, logout, sessions, and protected access |
 | `npm run build`        | Create the production build                                        |
 | `npm run start`        | Serve an existing production build                                 |
@@ -72,7 +72,8 @@ database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
 Authentication is available at `/login`, `/register`, and `/dashboard`.
-Organization APIs and tenant-scope rules are documented in [Day 7 verification](docs/day-07.md).
+Organization, tenant isolation, and RBAC APIs are documented in the [Day 6](docs/day-06.md),
+[Day 7](docs/day-07.md), and [Day 8](docs/day-08.md) verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -114,6 +115,8 @@ src/
   lib/api/             Request boundary, responses, typed errors, validation
   lib/logging/         Structured request completion logging
   modules/             Domain features, added on their scheduled days
+    authorization/     Role and permission matrix plus server guards
+    organizations/     Tenant-scoped services and repositories
 prisma/                Schema, versioned SQL migrations, and local seed
 scripts/               Local setup helpers
 tests/                 Focused foundation tests
@@ -125,10 +128,10 @@ place future business logic in domain modules. Avoid shared packages until a
 second application proves a stable interface. TypeScript uses `strict` and
 `noUncheckedIndexedAccess`; `@/*` resolves to `src/*`.
 
-The responsive shell includes an overview, an empty workspace, keyboard skip
-navigation, focus styles, reduced-motion support, and a custom 404. Its fonts
-are served locally from installed packages. There is no fake project data or
-working project creation yet.
+The responsive shell includes an overview, a protected dashboard, an active
+organization switcher, keyboard skip navigation, focus styles, reduced-motion
+support, and a custom 404. Its fonts are served locally from installed packages.
+Projects and tasks arrive in later milestones.
 
 ## Environment configuration
 
@@ -192,16 +195,16 @@ once a remote exists. Use commit subjects such as
 `chore: establish day 1 foundation`. No `develop` branch is needed.
 
 Feature branches are merged into `main` through pull requests. Cloud deployment
-remains a later milestone. See [Day 1 evidence](docs/day-01.md),
-[Day 2 evidence](docs/day-02.md), [Day 3 evidence](docs/day-03.md), and
+remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
+[Day 3](docs/day-03.md), [Day 4](docs/day-04.md), [Day 5](docs/day-05.md),
+[Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md), and
 [database design and migration conventions](docs/database.md).
 
 ## Next milestone
 
-Day 5 adds email verification/reset, rate limits, and session hardening. Tenant
-access enforcement, RBAC, project CRUD, Redis, workers, full application
-containerization, and CI/CD remain on their scheduled days. Day 2's Compose file
-runs only local PostgreSQL.
+Day 9 adds invitations and teams. Project CRUD, Redis, workers, full application
+containerization, and CI/CD remain on their scheduled days. The Compose file
+runs local PostgreSQL only.
 
 ### Tooling compatibility
 
