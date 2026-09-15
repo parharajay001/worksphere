@@ -116,8 +116,8 @@ describe("PostgreSQL foundation", { concurrency: false }, () => {
       beforeMemberships,
     );
     assert.equal(beforeSeed.length, 3);
-    assert.equal(beforeMemberships.length, 3);
-    assert.equal(await database.organization.count(), 1);
+    assert.equal(beforeMemberships.length, 4);
+    assert.equal(await database.organization.count(), 2);
     assert.equal(await database.account.count(), 0);
     assert.equal(await database.session.count(), 0);
     assert.ok(
@@ -201,6 +201,46 @@ describe("PostgreSQL foundation", { concurrency: false }, () => {
       database.session.create({ data: session }),
       uniqueViolation,
     );
+  });
+
+  test("tenant queries cannot cross organization membership boundaries", async () => {
+    const owner = await database.user.findUniqueOrThrow({
+      where: { email: "owner@worksphere.example" },
+    });
+    const manager = await database.user.findUniqueOrThrow({
+      where: { email: "manager@worksphere.example" },
+    });
+    const demo = await database.organization.findUniqueOrThrow({
+      where: { slug: "worksphere-demo" },
+    });
+    const labs = await database.organization.findUniqueOrThrow({
+      where: { slug: "worksphere-labs" },
+    });
+    assert.ok(
+      await database.membership.findUnique({
+        where: {
+          organizationId_userId: { organizationId: labs.id, userId: owner.id },
+        },
+      }),
+    );
+    assert.equal(
+      await database.membership.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: labs.id,
+            userId: manager.id,
+          },
+        },
+      }),
+      null,
+    );
+    const members = await database.membership.findMany({
+      where: { organizationId: labs.id },
+    });
+    assert.ok(
+      members.every((membership) => membership.organizationId === labs.id),
+    );
+    assert.notEqual(demo.id, labs.id);
   });
 
   test("foreign keys reject missing users and organizations", async () => {

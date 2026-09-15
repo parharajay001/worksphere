@@ -2,7 +2,11 @@ import "server-only";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
-import { findMembership, listForUser } from "./organization.repository.ts";
+import {
+  findMembership,
+  listForUser,
+  listMembers,
+} from "./organization.repository.ts";
 import type { CreateOrganizationInput } from "./organization.schemas.ts";
 
 const slugify = (name: string) =>
@@ -14,6 +18,13 @@ const slugify = (name: string) =>
     .slice(0, 63) || "workspace";
 export async function getOrganizations(userId: string) {
   return listForUser(userId);
+}
+export async function getOrganizationMembers(
+  userId: string,
+  organizationId: string,
+) {
+  await requireMembership(userId, organizationId);
+  return listMembers(organizationId);
 }
 export async function createOrganization(
   userId: string,
