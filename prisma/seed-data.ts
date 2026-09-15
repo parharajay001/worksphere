@@ -8,6 +8,11 @@ export async function seedDevelopmentData(database: PrismaClient) {
       create: { name: "WorkSphere Demo", slug: "worksphere-demo" },
       update: {},
     });
+    const secondOrganization = await transaction.organization.upsert({
+      where: { slug: "worksphere-labs" },
+      create: { name: "WorkSphere Labs", slug: "worksphere-labs" },
+      update: {},
+    });
 
     const users = [
       { email: "owner@worksphere.example", name: "Demo Owner", role: "OWNER" },
@@ -40,7 +45,27 @@ export async function seedDevelopmentData(database: PrismaClient) {
         update: {},
       });
     }
+    const owner = await transaction.user.findUniqueOrThrow({
+      where: { email: "owner@worksphere.example" },
+    });
+    await transaction.membership.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId: secondOrganization.id,
+          userId: owner.id,
+        },
+      },
+      create: {
+        organizationId: secondOrganization.id,
+        userId: owner.id,
+        role: "OWNER",
+      },
+      update: {},
+    });
 
-    return { organization: organization.slug, users: users.length };
+    return {
+      organizations: [organization.slug, secondOrganization.slug],
+      users: users.length,
+    };
   });
 }
