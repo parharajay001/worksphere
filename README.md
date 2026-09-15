@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 3 — API and validation foundation.**
+**Current milestone: Day 4 — authentication foundation.**
 
 ## Local setup
 
@@ -51,24 +51,28 @@ for a later milestone. Both development and production use port 3000 by default.
 
 ## Commands
 
-| Command                | Purpose                                                          |
-| ---------------------- | ---------------------------------------------------------------- |
-| `npm run setup`        | Create local environment configuration without overwriting it    |
-| `npm run dev`          | Start the development server                                     |
-| `npm run lint`         | Run Next.js/TypeScript lint rules, with zero warnings            |
-| `npm run format`       | Format source and documentation                                  |
-| `npm run format:check` | Verify formatting without editing files                          |
-| `npm run typecheck`    | Generate Next.js route types and check strict TypeScript         |
-| `npm test`             | Run environment and API foundation tests with Node's test runner |
-| `npm run build`        | Create the production build                                      |
-| `npm run start`        | Serve an existing production build                               |
-| `npm run check`        | Run lint, formatting, typecheck, tests, and build in sequence    |
+| Command                | Purpose                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `npm run setup`        | Create local environment configuration without overwriting it      |
+| `npm run dev`          | Start the development server                                       |
+| `npm run lint`         | Run Next.js/TypeScript lint rules, with zero warnings              |
+| `npm run format`       | Format source and documentation                                    |
+| `npm run format:check` | Verify formatting without editing files                            |
+| `npm run typecheck`    | Generate Next.js route types and check strict TypeScript           |
+| `npm test`             | Run environment, API, and authentication unit tests                |
+| `npm run test:auth`    | Verify registration, login, logout, sessions, and protected access |
+| `npm run build`        | Create the production build                                        |
+| `npm run start`        | Serve an existing production build                                 |
+| `npm run check`        | Run lint, formatting, typecheck, tests, and build in sequence      |
 
 ### Database commands
 
 `npm run test:api` verifies the built app's HTTP routes, request logs, and
 database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
+
+Authentication is available at `/login`, `/register`, and `/dashboard`. See the
+[authentication reference](docs/auth.md) and [Day 4 verification](docs/day-04.md).
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -194,8 +198,8 @@ remains a later milestone. See [Day 1 evidence](docs/day-01.md),
 
 ## Next milestone
 
-Day 4 adds authentication using the API and database foundations. Tenant access
-enforcement, RBAC, project CRUD, Redis, workers, full application
+Day 5 adds email verification/reset, rate limits, and session hardening. Tenant
+access enforcement, RBAC, project CRUD, Redis, workers, full application
 containerization, and CI/CD remain on their scheduled days. Day 2's Compose file
 runs only local PostgreSQL.
 

@@ -509,3 +509,147 @@ h3 {
     transition: none !important;
   }
 }
+
+.auth-page {
+  min-height: calc(100svh - 84px);
+  display: grid;
+  grid-template-columns: minmax(320px, 470px) 1fr;
+  gap: clamp(50px, 8vw, 150px);
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px 52px;
+}
+.auth-card {
+  width: 100%;
+}
+.auth-brand {
+  display: inline-block;
+  margin-bottom: 70px;
+  font-family: var(--heading-font);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+.auth-brand span {
+  color: #729c45;
+}
+.auth-card h1 {
+  font-size: clamp(34px, 4vw, 52px);
+  margin: 17px 0 15px;
+}
+.auth-intro {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin-bottom: 30px;
+}
+.auth-card form {
+  display: grid;
+  gap: 17px;
+}
+.auth-card label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.auth-card input {
+  width: 100%;
+  border: 1px solid #d4d8cd;
+  border-radius: 4px;
+  padding: 13px 14px;
+  background: #fff;
+  color: var(--ink);
+  font: 14px var(--body-font);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.auth-card input:focus {
+  border-color: var(--green);
+  outline: 3px solid #dce8bc;
+  outline-offset: 0;
+}
+.auth-submit {
+  border: 0;
+  cursor: pointer;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+.auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.auth-error {
+  margin: 0;
+  border-left: 3px solid #a04d3d;
+  padding: 9px 11px;
+  background: #f7eae4;
+  color: #793d30;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.auth-switch {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 22px;
+}
+.auth-switch a {
+  color: var(--green);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 330px;
+  background: radial-gradient(ellipse at center, #e8eddb 0, transparent 68%);
+  color: var(--green);
+}
+.auth-orbit {
+  position: absolute;
+  width: 86%;
+  height: 54%;
+  border: 1px solid #b8c7a2;
+  border-radius: 50%;
+  transform: rotate(-41deg);
+}
+.auth-orbit.second {
+  transform: rotate(41deg);
+}
+.auth-art > span {
+  font:
+    italic 125px Georgia,
+    serif;
+}
+.auth-art small {
+  position: absolute;
+  margin-top: 125px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.protected-overview {
+  padding-top: 100px;
+}
+@media (max-width: 760px) {
+  .auth-page {
+    min-height: calc(100svh - 72px);
+    grid-template-columns: 1fr;
+    padding: 35px 22px;
+  }
+  .auth-brand {
+    margin-bottom: 50px;
+  }
+  .auth-art {
+    display: none;
+  }
+  .protected-overview {
+    padding-top: 60px;
+  }
+}
