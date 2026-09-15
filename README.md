@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 6 — organizations and tenancy.**
+**Current milestone: Day 7 — tenant isolation.**
 
 ## Local setup
 
@@ -72,7 +72,7 @@ database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
 Authentication is available at `/login`, `/register`, and `/dashboard`.
-Organization APIs and active-workspace context are documented in [Day 6 verification](docs/day-06.md).
+Organization APIs and tenant-scope rules are documented in [Day 7 verification](docs/day-07.md).
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
