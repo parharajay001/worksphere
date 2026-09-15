@@ -8,6 +8,7 @@ import {
   listMembers,
 } from "./organization.repository.ts";
 import type { CreateOrganizationInput } from "./organization.schemas.ts";
+import { requirePermission } from "../authorization/guards.ts";
 
 const slugify = (name: string) =>
   name
@@ -23,7 +24,7 @@ export async function getOrganizationMembers(
   userId: string,
   organizationId: string,
 ) {
-  await requireMembership(userId, organizationId);
+  await requirePermission(userId, organizationId, "members:read");
   return listMembers(organizationId);
 }
 export async function createOrganization(
@@ -63,9 +64,7 @@ export async function updateOrganization(
   organizationId: string,
   name: string,
 ) {
-  const membership = await requireMembership(userId, organizationId);
-  if (membership.role !== "OWNER" && membership.role !== "ADMIN")
-    throw new AppError("FORBIDDEN");
+  await requirePermission(userId, organizationId, "organization:update");
   return database.organization.update({
     where: { id: organizationId },
     data: { name },
@@ -76,7 +75,6 @@ export async function deleteOrganization(
   userId: string,
   organizationId: string,
 ) {
-  const membership = await requireMembership(userId, organizationId);
-  if (membership.role !== "OWNER") throw new AppError("FORBIDDEN");
+  await requirePermission(userId, organizationId, "organization:delete");
   await database.organization.delete({ where: { id: organizationId } });
 }

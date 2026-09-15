@@ -4,6 +4,7 @@ import { SignOutButton } from "../../components/sign-out-button";
 import { getOrganizations } from "../../modules/organizations/organization.service.ts";
 import { getActiveOrganization } from "../../modules/organizations/active-organization.ts";
 import { OrganizationSwitcher } from "../../components/organization-switcher";
+import { hasPermission } from "../../modules/authorization/permissions.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,14 @@ export default async function DashboardPage() {
         organizations={memberships.map(({ organization }) => organization)}
         activeId={activeOrganization?.id}
       />
+      {activeOrganization &&
+      memberships.some(
+        ({ organization, role }) =>
+          organization.id === activeOrganization.id &&
+          hasPermission(role, "organization:update"),
+      ) ? (
+        <p className="quiet-label">You can manage this organization.</p>
+      ) : null}
     </div>
   );
 }
