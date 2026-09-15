@@ -674,3 +674,35 @@ h3 {
     padding-top: 60px;
   }
 }
+
+.project-list {
+  margin-top: 50px;
+  max-width: 760px;
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.project-card {
+  display: block;
+  border: 1px solid #d4d8cd;
+  border-radius: 5px;
+  padding: 20px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+}
+.project-card:hover {
+  border-color: var(--green);
+  transform: translateY(-2px);
+}
+.project-card h3 {
+  margin: 8px 0;
+  font-size: 20px;
+}
+.project-card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
