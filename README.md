@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 8 — role-based access control.**
+**Current milestone: Day 9 — invitations and teams.**
 
 ## Local setup
 
@@ -72,8 +72,9 @@ database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
 Authentication is available at `/login`, `/register`, and `/dashboard`.
-Organization, tenant isolation, and RBAC APIs are documented in the [Day 6](docs/day-06.md),
-[Day 7](docs/day-07.md), and [Day 8](docs/day-08.md) verification notes.
+Organization, tenant isolation, RBAC, invitations, and teams are documented in
+the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
+and [Day 9](docs/day-09.md) verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -117,6 +118,9 @@ src/
   modules/             Domain features, added on their scheduled days
     authorization/     Role and permission matrix plus server guards
     organizations/     Tenant-scoped services and repositories
+    invitations/       Hashed invitation token lifecycle
+    teams/             Organization-scoped teams
+    notifications/     Email delivery abstraction
 prisma/                Schema, versioned SQL migrations, and local seed
 scripts/               Local setup helpers
 tests/                 Focused foundation tests
@@ -202,7 +206,7 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 9 adds invitations and teams. Project CRUD, Redis, workers, full application
+Day 10 adds projects. Project CRUD, Redis, workers, full application
 containerization, and CI/CD remain on their scheduled days. The Compose file
 runs local PostgreSQL only.
 
