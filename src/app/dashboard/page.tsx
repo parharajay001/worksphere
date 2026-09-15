@@ -5,6 +5,7 @@ import { getOrganizations } from "../../modules/organizations/organization.servi
 import { getActiveOrganization } from "../../modules/organizations/active-organization.ts";
 import { OrganizationSwitcher } from "../../components/organization-switcher";
 import { hasPermission } from "../../modules/authorization/permissions.ts";
+import { listProjects } from "../../modules/projects/project.service.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
   const memberships = await getOrganizations(user.id);
   const activeOrganization = await getActiveOrganization(user.id);
+  const projects = activeOrganization
+    ? await listProjects(user.id, activeOrganization.id)
+    : [];
   return (
     <div className="overview protected-overview">
       <p className="eyebrow accent">Private workspace</p>
@@ -35,6 +39,36 @@ export default async function DashboardPage() {
       ) ? (
         <p className="quiet-label">You can manage this organization.</p>
       ) : null}
+      <section className="project-list" aria-labelledby="projects-title">
+        <div className="section-heading">
+          <h2 id="projects-title">Projects</h2>
+          <span className="outline-label">
+            {projects.length} active space{projects.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {projects.length ? (
+          <div className="project-grid">
+            {projects.map((project) => (
+              <a
+                className="project-card"
+                key={project.id}
+                href={`/projects/${project.id}`}
+              >
+                <span className="eyebrow accent">{project.status}</span>
+                <h3>{project.name}</h3>
+                <p>
+                  {project.description ??
+                    "A focused space for shared progress."}
+                </p>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-workspace">
+            No projects yet. Create one through the projects API.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

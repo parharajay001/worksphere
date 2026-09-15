@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 9 — invitations and teams.**
+**Current milestone: Day 10 — projects.**
 
 ## Local setup
 
@@ -72,9 +72,9 @@ database-failure behavior using temporary local production servers. Run
 `npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
 
 Authentication is available at `/login`, `/register`, and `/dashboard`.
-Organization, tenant isolation, RBAC, invitations, and teams are documented in
+Organization, tenant isolation, RBAC, invitations, teams, and projects are documented in
 the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
-and [Day 9](docs/day-09.md) verification notes.
+and [Day 9](docs/day-09.md), and [Day 10](docs/day-10.md) verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -121,6 +121,7 @@ src/
     invitations/       Hashed invitation token lifecycle
     teams/             Organization-scoped teams
     notifications/     Email delivery abstraction
+    projects/          Organization/team-owned project services
 prisma/                Schema, versioned SQL migrations, and local seed
 scripts/               Local setup helpers
 tests/                 Focused foundation tests
@@ -206,7 +207,7 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 10 adds projects. Project CRUD, Redis, workers, full application
+Day 11 adds tasks. Task CRUD, Redis, workers, full application
 containerization, and CI/CD remain on their scheduled days. The Compose file
 runs local PostgreSQL only.
 
