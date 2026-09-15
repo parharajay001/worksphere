@@ -61,6 +61,7 @@ for a later milestone. Both development and production use port 3000 by default.
 | `npm run typecheck`    | Generate Next.js route types and check strict TypeScript           |
 | `npm test`             | Run environment, API, authentication, and RBAC unit tests          |
 | `npm run test:auth`    | Verify registration, login, logout, sessions, and protected access |
+| `npm run test:e2e`     | Run Playwright browser checks against the production server        |
 | `npm run build`        | Create the production build                                        |
 | `npm run start`        | Serve an existing production build                                 |
 | `npm run check`        | Run lint, formatting, typecheck, tests, and build in sequence      |

@@ -8,5 +8,6 @@ src/generated/prisma/
 .env*
 !.env.example
 *.log
+test-results/
 .DS_Store
 Thumbs.db
