@@ -19,7 +19,7 @@ test("registration creates a session and logout protects the dashboard", async (
   await page.getByRole("button", { name: /create account/i }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
-    page.getByRole("heading", { name: /welcome, browser tester/i }),
+    page.getByRole("heading", { name: /good morning, browser/i }),
   ).toBeVisible();
   await page.getByRole("button", { name: /sign out/i }).click();
   await expect(page).toHaveURL(/\/login$/);
