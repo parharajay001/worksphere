@@ -8,6 +8,8 @@ import { hasPermission } from "../../modules/authorization/permissions.ts";
 import { listProjects } from "../../modules/projects/project.service.ts";
 import { listActivity } from "../../modules/activity/activity.service.ts";
 import { ActivityFeed } from "../../components/activity-feed";
+import { NotificationCenter } from "../../components/notification-center";
+import { listNotifications } from "../../modules/notifications/notification.service.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,10 @@ export default async function DashboardPage() {
         { limit: 20 },
       )
     : { activities: [], nextCursor: null };
+  const notifications = await listNotifications(user.id, {
+    limit: 20,
+    unreadOnly: false,
+  });
   return (
     <div className="overview protected-overview">
       <p className="eyebrow accent">Private workspace</p>
@@ -85,6 +91,7 @@ export default async function DashboardPage() {
           title="Workspace activity"
         />
       )}
+      <NotificationCenter initialPage={notifications} />
     </div>
   );
 }

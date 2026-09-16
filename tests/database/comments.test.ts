@@ -31,6 +31,7 @@ describe(
     let db: (typeof import("../../src/database/client.ts"))["database"];
     let comments: typeof import("../../src/modules/comments/comment.service.ts");
     let activity: typeof import("../../src/modules/activity/activity.service.ts");
+    let notifications: typeof import("../../src/modules/notifications/notification.service.ts");
     let owner = "";
     let member = "";
     let outsider = "";
@@ -77,6 +78,8 @@ describe(
           await import("../../src/modules/comments/comment.service.ts");
         activity =
           await import("../../src/modules/activity/activity.service.ts");
+        notifications =
+          await import("../../src/modules/notifications/notification.service.ts");
         owner = (
           await db.user.create({
             data: { name: "Owner", email: "comment-owner@test.example" },
@@ -273,6 +276,25 @@ describe(
       assert.equal(
         (await db.comment.findUnique({ where: { id: mention.id } }))?.body,
         "Please review this, @comment-owner",
+      );
+      const inbox = await notifications.listNotifications(owner, {
+        limit: 20,
+        unreadOnly: true,
+      });
+      assert.equal(inbox.unreadCount, 1);
+      assert.equal(inbox.notifications[0]?.kind, "mention");
+      await notifications.markNotificationRead(
+        owner,
+        inbox.notifications[0]!.id,
+      );
+      assert.equal(
+        (
+          await notifications.listNotifications(owner, {
+            limit: 20,
+            unreadOnly: true,
+          })
+        ).unreadCount,
+        0,
       );
       await assert.rejects(
         comments.createComment(member, mentionTask, {

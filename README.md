@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 14 - mentions and activity.**
+**Current milestone: Day 15 - notifications.**
 
 ## Local setup
 
@@ -76,8 +76,8 @@ Authentication is available at `/login`, `/register`, and `/dashboard`.
 Organization, tenant isolation, RBAC, invitations, teams, projects, and tasks are documented in
 the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
 and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), [Day 11](docs/day-11.md), and
-[Day 12](docs/day-12.md), [Day 13](docs/day-13.md), and [Day 14](docs/day-14.md)
-verification notes.
+[Day 12](docs/day-12.md), [Day 13](docs/day-13.md), [Day 14](docs/day-14.md),
+and [Day 15](docs/day-15.md) verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -123,7 +123,7 @@ src/
     organizations/     Tenant-scoped services and repositories
     invitations/       Hashed invitation token lifecycle
     teams/             Organization-scoped teams
-    notifications/     Email delivery abstraction
+    notifications/     In-app notification service and delivery abstractions
     projects/          Organization/team-owned project services
     tasks/             Project-owned task services and filters
 prisma/                Schema, versioned SQL migrations, and local seed
@@ -216,7 +216,7 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 15 adds notifications and real-time delivery. Redis, workers, full
+Day 16 adds Redis-backed caching and rate-limit storage. Workers, full
 application containerization, and CI/CD remain on their scheduled days. The
 Compose file runs local PostgreSQL only.
 
