@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 11 — tasks.**
+**Current milestone: Day 12 - Kanban.**
 
 ## Local setup
 
@@ -75,7 +75,8 @@ database-failure behavior using temporary local production servers. Run
 Authentication is available at `/login`, `/register`, and `/dashboard`.
 Organization, tenant isolation, RBAC, invitations, teams, projects, and tasks are documented in
 the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
-and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), and [Day 11](docs/day-11.md) verification notes.
+and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), [Day 11](docs/day-11.md), and
+[Day 12](docs/day-12.md) verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -138,7 +139,8 @@ second application proves a stable interface. TypeScript uses `strict` and
 The responsive shell includes an overview, a protected dashboard, an active
 organization switcher, keyboard skip navigation, focus styles, reduced-motion
 support, and a custom 404. Its fonts are served locally from installed packages.
-Projects and tasks arrive in later milestones.
+Project detail pages include a responsive Kanban board with task creation,
+keyboard/pointer movement, persisted ordering, and conflict recovery.
 
 ## Environment configuration
 
@@ -209,7 +211,7 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 12 adds Kanban. Drag-and-drop ordering, Redis, workers, full application
+Day 13 adds comments. Redis, workers, full application
 containerization, and CI/CD remain on their scheduled days. The Compose file
 runs local PostgreSQL only.
 

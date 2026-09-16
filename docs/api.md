@@ -198,3 +198,16 @@ requests; no artificial public mutation endpoint is added just for testing.
 
 Relevant framework behavior: [Next.js Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route).
 Schema parsing: [Zod basics](https://zod.dev/basics).
+
+## Project boards (Day 12)
+
+`GET /api/projects/:id/board` returns a consistent `{ revision, tasks }` snapshot
+under `data.board`. `PATCH` on the same route accepts `{ taskId, status, index,
+revision }` and returns the updated snapshot. Indices are zero-based after
+removing the moving task. A stale revision returns 409; clients must reload
+before retrying. All task CRUD operations invalidate earlier board revisions.
+
+Organization members can read; owners/admins/managers can move tasks. Anonymous
+requests receive 401, nonmembers receive 404, and read-only members receive 403
+on writes. Moves cannot reference tasks outside the URL's project. See
+[Day 12](day-12.md) for ordering, transactions, and verification details.
