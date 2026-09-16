@@ -7,7 +7,15 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { Check, LoaderCircle, Pencil, Send, Trash2, X } from "lucide-react";
+import {
+  AtSign,
+  Check,
+  LoaderCircle,
+  Pencil,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { MentionCandidate } from "@/modules/comments/mentions";
 
 type Comment = {
@@ -37,13 +45,14 @@ function relativeDate(value: string) {
 function mentionRange(value: string, cursor: number) {
   const beforeCursor = value.slice(0, cursor);
   const match = beforeCursor.match(
-    /(?:^|[^A-Za-z0-9_.@-])@([A-Za-z0-9][A-Za-z0-9_.-]{0,63})$/,
+    /(?:^|[^A-Za-z0-9_.@-])@([A-Za-z0-9][A-Za-z0-9_.-]{0,63})?$/,
   );
   if (!match) return null;
+  const query = match[1] ?? "";
   return {
-    start: cursor - match[1]!.length - 1,
+    start: cursor - query.length - 1,
     end: cursor,
-    query: match[1]!.toLowerCase(),
+    query: query.toLowerCase(),
   };
 }
 
@@ -251,7 +260,7 @@ export function TaskComments({
               placeholder="Share an update or useful context..."
               role="combobox"
               aria-autocomplete="list"
-              aria-expanded={mention !== null && mentionMatches.length > 0}
+              aria-expanded={mention !== null}
               aria-controls="mention-suggestions"
               onChange={(event) => {
                 setBody(event.target.value);
@@ -275,36 +284,49 @@ export function TaskComments({
               onKeyDown={handleComposerKeyDown}
               disabled={pending !== null}
             />
-            {mention && mentionMatches.length > 0 && (
+            {mention && (
               <div
                 className="mention-suggestions"
                 id="mention-suggestions"
                 role="listbox"
                 aria-label="Mention suggestions"
               >
-                {mentionMatches.map((candidate, index) => (
-                  <button
-                    className={
-                      index === activeMention
-                        ? "mention-option active"
-                        : "mention-option"
-                    }
-                    key={candidate.id}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeMention}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => chooseMention(candidate)}
-                  >
-                    <span className="mention-avatar" aria-hidden="true">
-                      {candidate.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span>
-                      <strong>{candidate.name}</strong>
-                      <small>@{mentionToken(candidate)}</small>
-                    </span>
-                  </button>
-                ))}
+                <div className="mention-suggestions-heading">
+                  <span>
+                    <AtSign size={13} aria-hidden="true" />
+                    Mention a teammate
+                  </span>
+                  <small>↑ ↓ &nbsp; select</small>
+                </div>
+                {mentionMatches.length > 0 ? (
+                  mentionMatches.map((candidate, index) => (
+                    <button
+                      className={
+                        index === activeMention
+                          ? "mention-option active"
+                          : "mention-option"
+                      }
+                      key={candidate.id}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeMention}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => chooseMention(candidate)}
+                    >
+                      <span className="mention-avatar" aria-hidden="true">
+                        {candidate.name.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span>
+                        <strong>{candidate.name}</strong>
+                        <small>@{mentionToken(candidate)}</small>
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="mention-empty">
+                    No teammates match &quot;{mention.query}&quot;.
+                  </p>
+                )}
               </div>
             )}
           </div>
