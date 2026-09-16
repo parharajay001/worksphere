@@ -138,6 +138,9 @@ describe(
 
     after(async () => {
       try {
+        await (
+          await import("../../src/cache/redis-client.ts")
+        ).closeRedisClient();
         await db?.$disconnect();
         if (created) {
           assert.match(databaseName, /^worksphere_test_[a-f0-9]{32}$/);

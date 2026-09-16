@@ -9,6 +9,8 @@ import { AppError } from "@/lib/api/errors";
 import { projectIdSchema } from "@/modules/projects/project.schemas";
 import { listActivity } from "@/modules/activity/activity.service";
 import { ActivityFeed } from "@/components/activity-feed";
+import { ProjectChat } from "@/components/project-chat";
+import { ensureConversation, listMessages } from "@/modules/chat/chat.service";
 export const dynamic = "force-dynamic";
 export default async function ProjectPage({
   params,
@@ -37,6 +39,10 @@ export default async function ProjectPage({
     { projectId: project.id },
     { limit: 25 },
   );
+  const conversation = await ensureConversation(user.id, {
+    projectId: project.id,
+  });
+  const messages = await listMessages(user.id, conversation.id, { limit: 30 });
   return (
     <article className="overview project-board-page">
       <p className="eyebrow accent">{project.status} project</p>
@@ -60,6 +66,12 @@ export default async function ProjectPage({
         endpoint={`/api/projects/${project.id}/activity`}
         initialPage={activity}
         title="Project activity"
+      />
+      <ProjectChat
+        projectId={project.id}
+        conversationId={conversation.id}
+        currentUserId={user.id}
+        initialPage={messages}
       />
     </article>
   );

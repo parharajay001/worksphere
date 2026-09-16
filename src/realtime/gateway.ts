@@ -13,6 +13,7 @@ import {
   realtimeEventSchema,
   roomName,
   roomTargetSchema,
+  typingEventSchema,
 } from "./contracts.ts";
 import { authorizeRealtimeRoom } from "./rooms.ts";
 
@@ -54,14 +55,17 @@ io.on("connection", (socket) => {
 
   socket.on("room:join", async (input, acknowledge) => {
     const parsed = roomTargetSchema.safeParse(input);
-    const room = parsed.success
-      ? await authorizeRealtimeRoom(userId, parsed.data)
-      : null;
+    if (!parsed.success) {
+      if (typeof acknowledge === "function") acknowledge({ ok: false });
+      return;
+    }
+    const room = await authorizeRealtimeRoom(userId, parsed.data);
     if (!room) {
       if (typeof acknowledge === "function") acknowledge({ ok: false });
       return;
     }
     await socket.join(room);
+    if (parsed.data.kind !== "organization") void broadcastPresence(room);
     if (typeof acknowledge === "function") acknowledge({ ok: true });
   });
 
@@ -71,10 +75,43 @@ io.on("connection", (socket) => {
     const room =
       parsed.data.kind === "organization"
         ? roomName.organization(parsed.data.id)
-        : roomName.project(parsed.data.id);
+        : parsed.data.kind === "project"
+          ? roomName.project(parsed.data.id)
+          : roomName.team(parsed.data.id);
     await socket.leave(room);
+    if (parsed.data.kind !== "organization") void broadcastPresence(room);
+  });
+
+  socket.on("chat:typing", (input) => {
+    const parsed = typingEventSchema.safeParse(input);
+    if (!parsed.success) return;
+    const room = roomName[parsed.data.target.kind](parsed.data.target.id);
+    if (!socket.rooms.has(room)) return;
+    socket.to(room).emit("chat.typing", {
+      roomKind: parsed.data.target.kind,
+      roomId: parsed.data.target.id,
+      userId,
+      active: parsed.data.active,
+    });
+  });
+
+  socket.on("disconnecting", () => {
+    const rooms = [...socket.rooms].filter(
+      (room) => room.startsWith("project:") || room.startsWith("team:"),
+    );
+    setTimeout(() => {
+      for (const room of rooms) void broadcastPresence(room);
+    }, 0);
   });
 });
+
+async function broadcastPresence(room: string) {
+  const sockets = await io.in(room).fetchSockets();
+  const userIds = [
+    ...new Set(sockets.map((socket) => socket.data.userId as string)),
+  ];
+  io.to(room).emit("presence.changed", { userIds });
+}
 
 const subscriber = createClient({
   url: parseRedisEnvironment(process.env).REDIS_URL,
@@ -94,7 +131,9 @@ await subscriber.subscribe(realtimeChannel, (message) => {
   const room =
     "userId" in event.target
       ? roomName.user(event.target.userId)
-      : roomName.project(event.target.projectId);
+      : "projectId" in event.target
+        ? roomName.project(event.target.projectId)
+        : roomName[event.target.roomKind](event.target.roomId);
   io.to(room).emit(event.name, event.payload);
 });
 

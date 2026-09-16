@@ -49,6 +49,11 @@ enum NotificationKind {
   MENTION
 }
 
+enum ConversationKind {
+  PROJECT
+  TEAM
+}
+
 model User {
   id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String           @unique @db.VarChar(254)
@@ -71,6 +76,8 @@ model User {
   sentNotifications     Notification[]   @relation("NotificationActor")
   reportedTasks         Task[]           @relation("TaskReporter")
   assignedTasks         Task[]           @relation("TaskAssignee")
+  chatMessages          ChatMessage[]
+  conversationReads     ConversationReadState[]
 }
 
 model AuthToken {
@@ -124,6 +131,7 @@ model Organization {
   teams         Team[]
   projects      Project[]
   notifications Notification[]
+  conversations Conversation[]
 }
 
 model Membership {
@@ -169,6 +177,7 @@ model Team {
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    TeamMembership[]
   projects       Project[]
+  conversations  Conversation[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -205,6 +214,7 @@ model Project {
   events         ActivityEvent[]
   notifications  Notification[]
   tasks          Task[]
+  conversations  Conversation[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -297,4 +307,60 @@ model Comment {
 
   @@index([taskId, createdAt, id])
   @@index([authorId])
+}
+
+model Conversation {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @db.Uuid
+  kind           ConversationKind
+  projectId      String?          @unique @db.Uuid
+  teamId         String?          @unique @db.Uuid
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team           Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  messages       ChatMessage[]
+  readStates     ConversationReadState[]
+
+  @@index([organizationId, updatedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String           @db.Uuid
+  authorId       String           @db.Uuid
+  body           String           @db.VarChar(4000)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         User             @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  attachments    ChatAttachment[]
+
+  @@index([conversationId, createdAt, id])
+  @@index([authorId])
+}
+
+model ConversationReadState {
+  conversationId String       @db.Uuid
+  userId         String       @db.Uuid
+  lastReadAt     DateTime     @db.Timestamptz(3)
+  updatedAt      DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId, updatedAt])
+}
+
+model ChatAttachment {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId   String      @db.Uuid
+  storageKey  String      @unique @db.VarChar(512)
+  fileName    String      @db.VarChar(255)
+  contentType String      @db.VarChar(127)
+  sizeBytes   Int
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
 }
