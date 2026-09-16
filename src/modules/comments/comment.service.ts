@@ -4,6 +4,8 @@ import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { hasPermission } from "../authorization/permissions.ts";
 import { requirePermission } from "../authorization/guards.ts";
+import { resolveMentions } from "./mentions.ts";
+import { deliverMentionNotification } from "../notifications/mentions.ts";
 import type { z } from "zod";
 import type {
   commentQuerySchema,
@@ -102,7 +104,11 @@ export async function createComment(
   input: CreateInput,
 ) {
   const context = await taskContext(userId, taskId);
-  return database.$transaction(async (tx) => {
+  const mentionedUsers = await resolveMentions(
+    context.project.organizationId,
+    input.body,
+  );
+  const result = await database.$transaction(async (tx) => {
     const comment = await tx.comment.create({
       data: { taskId, authorId: userId, body: input.body },
       select,
@@ -115,8 +121,29 @@ export async function createComment(
         metadata: { taskId, commentId: comment.id },
       },
     });
+    for (const user of mentionedUsers) {
+      await tx.activityEvent.create({
+        data: {
+          projectId: context.projectId,
+          actorId: userId,
+          action: "mention.created",
+          metadata: { taskId, commentId: comment.id, mentionedUserId: user.id },
+        },
+      });
+    }
     return present(comment);
   });
+  await Promise.allSettled(
+    mentionedUsers.map((user) =>
+      deliverMentionNotification({
+        recipientId: user.id,
+        actorId: userId,
+        taskId,
+        commentId: result.id,
+      }),
+    ),
+  );
+  return result;
 }
 
 async function commentContext(userId: string, id: string, write = false) {
@@ -157,8 +184,12 @@ export async function updateComment(
   const context = await commentContext(userId, id, true);
   if (!canChange(userId, context.comment.authorId, context.membership.role))
     throw new AppError("FORBIDDEN");
+  const mentionedUsers = await resolveMentions(
+    context.comment.task.project.organizationId,
+    input.body,
+  );
   try {
-    return await database.$transaction(async (tx) => {
+    const result = await database.$transaction(async (tx) => {
       const comment = await tx.comment.update({
         where: { id },
         data: { body: input.body },
@@ -172,8 +203,33 @@ export async function updateComment(
           metadata: { taskId: context.comment.taskId, commentId: id },
         },
       });
+      for (const user of mentionedUsers) {
+        await tx.activityEvent.create({
+          data: {
+            projectId: context.comment.task.projectId,
+            actorId: userId,
+            action: "mention.created",
+            metadata: {
+              taskId: context.comment.taskId,
+              commentId: id,
+              mentionedUserId: user.id,
+            },
+          },
+        });
+      }
       return present(comment);
     });
+    await Promise.allSettled(
+      mentionedUsers.map((user) =>
+        deliverMentionNotification({
+          recipientId: user.id,
+          actorId: userId,
+          taskId: context.comment.taskId,
+          commentId: id,
+        }),
+      ),
+    );
+    return result;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 13 - comments.**
+**Current milestone: Day 14 - mentions and activity.**
 
 ## Local setup
 
@@ -76,7 +76,8 @@ Authentication is available at `/login`, `/register`, and `/dashboard`.
 Organization, tenant isolation, RBAC, invitations, teams, projects, and tasks are documented in
 the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
 and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), [Day 11](docs/day-11.md), and
-[Day 12](docs/day-12.md) and [Day 13](docs/day-13.md) verification notes.
+[Day 12](docs/day-12.md), [Day 13](docs/day-13.md), and [Day 14](docs/day-14.md)
+verification notes.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
@@ -140,9 +141,10 @@ The responsive shell includes an overview, a protected dashboard, an active
 organization switcher, keyboard skip navigation, focus styles, reduced-motion
 support, and a custom 404. Its fonts are served locally from installed packages.
 Project detail pages include a responsive Kanban board with task creation,
-keyboard/pointer movement, persisted ordering, and conflict recovery.
+keyboard/pointer movement, persisted ordering, conflict recovery, and a
+cursor-paginated activity feed.
 Task detail pages include member comments with author-only editing, manager
-moderation, pagination, and activity events.
+moderation, pagination, @mentions, and activity events.
 
 ## Environment configuration
 
@@ -213,9 +215,9 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 14 adds mentions and activity. Redis, workers, full application
-containerization, and CI/CD remain on their scheduled days. The Compose file
-runs local PostgreSQL only.
+Day 15 adds notifications and real-time delivery. Redis, workers, full
+application containerization, and CI/CD remain on their scheduled days. The
+Compose file runs local PostgreSQL only.
 
 ### Tooling compatibility
 

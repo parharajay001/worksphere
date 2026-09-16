@@ -30,10 +30,12 @@ describe(
     let created = false;
     let db: (typeof import("../../src/database/client.ts"))["database"];
     let comments: typeof import("../../src/modules/comments/comment.service.ts");
+    let activity: typeof import("../../src/modules/activity/activity.service.ts");
     let owner = "";
     let member = "";
     let outsider = "";
     let task = "";
+    let mentionTask = "";
     let project = "";
     const appCode = (expected: string) => (error: unknown) =>
       Boolean(
@@ -73,6 +75,8 @@ describe(
         db = (await import("../../src/database/client.ts")).database;
         comments =
           await import("../../src/modules/comments/comment.service.ts");
+        activity =
+          await import("../../src/modules/activity/activity.service.ts");
         owner = (
           await db.user.create({
             data: { name: "Owner", email: "comment-owner@test.example" },
@@ -123,6 +127,15 @@ describe(
               projectId: project,
               reporterId: owner,
               title: "Discuss release",
+            },
+          })
+        ).id;
+        mentionTask = (
+          await db.task.create({
+            data: {
+              projectId: project,
+              reporterId: owner,
+              title: "Mention access",
             },
           })
         ).id;
@@ -241,6 +254,62 @@ describe(
           data: { taskId: task, authorId: owner, body: "   " },
         }),
         /Comment_body_nonempty/,
+      );
+    });
+
+    test("mentions resolve to organization members and appear in scoped activity", async () => {
+      const mention = await comments.createComment(member, mentionTask, {
+        body: "Please review this, @comment-owner",
+      });
+      const event = await db.activityEvent.findFirst({
+        where: { action: "mention.created", projectId: project },
+        orderBy: { createdAt: "desc" },
+      });
+      assert.equal(
+        event?.metadata &&
+          (event.metadata as Record<string, string>).mentionedUserId,
+        owner,
+      );
+      assert.equal(
+        (await db.comment.findUnique({ where: { id: mention.id } }))?.body,
+        "Please review this, @comment-owner",
+      );
+      await assert.rejects(
+        comments.createComment(member, mentionTask, {
+          body: "@comment-outsider",
+        }),
+        appCode("BAD_REQUEST"),
+      );
+      const projectPage = await activity.listActivity(
+        member,
+        { projectId: project },
+        { limit: 2 },
+      );
+      assert.ok(
+        projectPage.activities.some(
+          ({ action }) => action === "mention.created",
+        ),
+      );
+      const organizationPage = await activity.listActivity(
+        member,
+        {
+          organizationId: (
+            await db.project.findUniqueOrThrow({
+              where: { id: project },
+              select: { organizationId: true },
+            })
+          ).organizationId,
+        },
+        { limit: 2 },
+      );
+      assert.ok(
+        organizationPage.activities.every(
+          ({ project: item }) => item.id === project,
+        ),
+      );
+      await assert.rejects(
+        activity.listActivity(outsider, { projectId: project }, { limit: 2 }),
+        appCode("NOT_FOUND"),
       );
     });
   },

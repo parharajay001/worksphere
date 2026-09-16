@@ -156,6 +156,9 @@ export function TaskComments({
       </div>
       <form className="comment-composer" onSubmit={addComment}>
         <label htmlFor="new-comment">Add a comment</label>
+        <span className="comment-mention-hint">
+          Mention a project member with @name or @email.
+        </span>
         <div className="comment-compose-row">
           <textarea
             id="new-comment"

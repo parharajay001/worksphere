@@ -6,6 +6,8 @@ import { getActiveOrganization } from "../../modules/organizations/active-organi
 import { OrganizationSwitcher } from "../../components/organization-switcher";
 import { hasPermission } from "../../modules/authorization/permissions.ts";
 import { listProjects } from "../../modules/projects/project.service.ts";
+import { listActivity } from "../../modules/activity/activity.service.ts";
+import { ActivityFeed } from "../../components/activity-feed";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,13 @@ export default async function DashboardPage() {
   const projects = activeOrganization
     ? await listProjects(user.id, activeOrganization.id)
     : [];
+  const activity = activeOrganization
+    ? await listActivity(
+        user.id,
+        { organizationId: activeOrganization.id },
+        { limit: 20 },
+      )
+    : { activities: [], nextCursor: null };
   return (
     <div className="overview protected-overview">
       <p className="eyebrow accent">Private workspace</p>
@@ -69,6 +78,13 @@ export default async function DashboardPage() {
           </p>
         )}
       </section>
+      {activeOrganization && (
+        <ActivityFeed
+          endpoint={`/api/organizations/${activeOrganization.id}/activity`}
+          initialPage={activity}
+          title="Workspace activity"
+        />
+      )}
     </div>
   );
 }
