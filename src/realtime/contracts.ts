@@ -5,6 +5,7 @@ export const realtimeChannel = "worksphere:realtime:v1";
 export const roomTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("organization"), id: z.uuid() }).strict(),
   z.object({ kind: z.literal("project"), id: z.uuid() }).strict(),
+  z.object({ kind: z.literal("team"), id: z.uuid() }).strict(),
 ]);
 
 export type RoomTarget = z.infer<typeof roomTargetSchema>;
@@ -38,7 +39,21 @@ export const realtimeEventSchema = z.discriminatedUnion("name", [
       .object({ notificationId: z.uuid(), action: z.literal("created") })
       .strict(),
   }),
+  z.object({
+    name: z.literal("chat.message"),
+    target: z
+      .object({ roomKind: z.enum(["project", "team"]), roomId: z.uuid() })
+      .strict(),
+    payload: z
+      .object({ conversationId: z.uuid(), messageId: z.uuid() })
+      .strict(),
+  }),
 ]);
+
+export const typingEventSchema = z
+  .object({ target: roomTargetSchema, active: z.boolean() })
+  .strict()
+  .refine((value) => value.target.kind !== "organization");
 
 export type RealtimeEvent = z.infer<typeof realtimeEventSchema>;
 export type RealtimeEventName = RealtimeEvent["name"];
@@ -46,5 +61,6 @@ export type RealtimeEventName = RealtimeEvent["name"];
 export const roomName = {
   organization: (id: string) => `organization:${id}`,
   project: (id: string) => `project:${id}`,
+  team: (id: string) => `team:${id}`,
   user: (id: string) => `user:${id}`,
 };

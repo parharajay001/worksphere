@@ -11,6 +11,7 @@ const organizationA = "20000000-0000-4000-8000-000000000001";
 const organizationB = "20000000-0000-4000-8000-000000000002";
 const projectA = "30000000-0000-4000-8000-000000000001";
 const projectB = "30000000-0000-4000-8000-000000000002";
+const teamA = "40000000-0000-4000-8000-000000000001";
 
 test("parses an exact session cookie without accepting malformed encoding", () => {
   assert.equal(
@@ -62,6 +63,8 @@ test("project and organization rooms enforce tenant membership", async () => {
         : projectId === projectB
           ? organizationB
           : null,
+    teamAccess: async (candidateUser: string, teamId: string) =>
+      candidateUser === userId && teamId === teamA ? organizationA : null,
   };
 
   assert.equal(
@@ -95,6 +98,10 @@ test("project and organization rooms enforce tenant membership", async () => {
       lookups,
     ),
     null,
+  );
+  assert.equal(
+    await authorizeRealtimeRoom(userId, { kind: "team", id: teamA }, lookups),
+    `team:${teamA}`,
   );
 });
 
