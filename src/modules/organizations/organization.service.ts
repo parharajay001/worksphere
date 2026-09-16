@@ -9,6 +9,7 @@ import {
 } from "./organization.repository.ts";
 import type { CreateOrganizationInput } from "./organization.schemas.ts";
 import { requirePermission } from "../authorization/guards.ts";
+import { appendAuditEvent } from "../audit/audit.service.ts";
 
 const slugify = (name: string) =>
   name
@@ -40,6 +41,13 @@ export async function createOrganization(
       await tx.membership.create({
         data: { organizationId: organization.id, userId, role: "OWNER" },
       });
+      await appendAuditEvent(tx, {
+        tenantId: organization.id,
+        actorId: userId,
+        action: "organization.created",
+        targetType: "organization",
+        targetId: organization.id,
+      });
       return { ...organization, role: "OWNER" as const };
     });
   } catch (error) {
@@ -65,10 +73,21 @@ export async function updateOrganization(
   name: string,
 ) {
   await requirePermission(userId, organizationId, "organization:update");
-  return database.organization.update({
-    where: { id: organizationId },
-    data: { name },
-    select: { id: true, name: true, slug: true },
+  return database.$transaction(async (tx) => {
+    const organization = await tx.organization.update({
+      where: { id: organizationId },
+      data: { name },
+      select: { id: true, name: true, slug: true },
+    });
+    await appendAuditEvent(tx, {
+      tenantId: organizationId,
+      actorId: userId,
+      action: "organization.updated",
+      targetType: "organization",
+      targetId: organizationId,
+      metadata: { changedField: "name" },
+    });
+    return organization;
   });
 }
 export async function deleteOrganization(
@@ -76,5 +95,14 @@ export async function deleteOrganization(
   organizationId: string,
 ) {
   await requirePermission(userId, organizationId, "organization:delete");
-  await database.organization.delete({ where: { id: organizationId } });
+  await database.$transaction(async (tx) => {
+    await appendAuditEvent(tx, {
+      tenantId: organizationId,
+      actorId: userId,
+      action: "organization.deleted",
+      targetType: "organization",
+      targetId: organizationId,
+    });
+    await tx.organization.delete({ where: { id: organizationId } });
+  });
 }

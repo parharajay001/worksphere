@@ -22,6 +22,8 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
   let projects: typeof import("../../src/modules/projects/project.service.ts");
   let billing: typeof import("../../src/modules/billing/billing.service.ts");
   let webhooks: typeof import("../../src/modules/billing/webhook.service.ts");
+  let analytics: typeof import("../../src/modules/analytics/analytics.service.ts");
+  let audit: typeof import("../../src/modules/audit/audit.service.ts");
   let owner = "";
   let member = "";
   let outsider = "";
@@ -58,6 +60,9 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       projects = await import("../../src/modules/projects/project.service.ts");
       billing = await import("../../src/modules/billing/billing.service.ts");
       webhooks = await import("../../src/modules/billing/webhook.service.ts");
+      analytics =
+        await import("../../src/modules/analytics/analytics.service.ts");
+      audit = await import("../../src/modules/audit/audit.service.ts");
       owner = (
         await db.user.create({
           data: { name: "Owner", email: "chat-owner@test.example" },
@@ -206,6 +211,56 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
         where: { externalEventId: event.id },
       }),
       1,
+    );
+  });
+
+  test("serves tenant KPIs and keeps sensitive audit rows immutable", async () => {
+    const organizationId = (
+      await db.project.findUniqueOrThrow({
+        where: { id: project },
+        select: { organizationId: true },
+      })
+    ).organizationId;
+    await db.task.create({
+      data: {
+        projectId: project,
+        reporterId: owner,
+        title: "Measured",
+        status: "DONE",
+      },
+    });
+    await db.activityEvent.create({
+      data: { projectId: project, actorId: owner, action: "task.created" },
+    });
+    const snapshot = await analytics.getAnalytics(owner, organizationId);
+    assert.ok(snapshot.analytics.projects >= 3);
+    assert.equal(snapshot.analytics.tasksByStatus.DONE, 1);
+    assert.equal(snapshot.analytics.activeUsers30d, 1);
+    await assert.rejects(
+      analytics.getAnalytics(outsider, organizationId),
+      appCode("NOT_FOUND"),
+    );
+
+    const ledger = await audit.listAuditEvents(owner, {
+      organizationId,
+      limit: 50,
+    });
+    assert.ok(
+      ledger.events.some(
+        (event) => event.action === "billing.subscription_changed",
+      ),
+    );
+    const eventId = ledger.events[0]!.id;
+    await assert.rejects(
+      db.auditEvent.update({
+        where: { id: eventId },
+        data: { action: "tampered" },
+      }),
+      /immutable/,
+    );
+    await assert.rejects(
+      db.auditEvent.delete({ where: { id: eventId } }),
+      /immutable/,
     );
   });
 });

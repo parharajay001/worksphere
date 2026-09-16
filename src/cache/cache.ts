@@ -3,9 +3,14 @@ import { getRedisClient } from "./redis-client.ts";
 
 export type CacheState = "hit" | "miss" | "unavailable";
 export const PROJECT_LIST_TTL_SECONDS = 30;
+export const ANALYTICS_TTL_SECONDS = 60;
 
 export function projectListKey(organizationId: string) {
   return `worksphere:projects:v1:organization:${organizationId}`;
+}
+
+export function analyticsKey(organizationId: string) {
+  return `worksphere:analytics:v1:organization:${organizationId}`;
 }
 
 export async function getCachedJson<T>(key: string) {

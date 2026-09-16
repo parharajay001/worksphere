@@ -6,6 +6,7 @@ import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
 import { enqueueInvitationEmail } from "../../queue/email-queue.ts";
 import type { CreateInvitationInput } from "./invitation.schemas.ts";
+import { appendAuditEvent } from "../audit/audit.service.ts";
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function createInvitation(
@@ -15,23 +16,34 @@ export async function createInvitation(
   await requirePermission(inviterId, input.organizationId, "members:manage");
   const token = randomBytes(32).toString("base64url");
   try {
-    const invitation = await database.invitation.create({
-      data: {
-        organizationId: input.organizationId,
-        inviterId,
-        email: input.email,
-        role: input.role,
-        tokenHash: hash(token),
-        expiresAt: new Date(Date.now() + 7 * 86400000),
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        status: true,
-        expiresAt: true,
-        organization: { select: { name: true } },
-      },
+    const invitation = await database.$transaction(async (tx) => {
+      const created = await tx.invitation.create({
+        data: {
+          organizationId: input.organizationId,
+          inviterId,
+          email: input.email,
+          role: input.role,
+          tokenHash: hash(token),
+          expiresAt: new Date(Date.now() + 7 * 86400000),
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true,
+          expiresAt: true,
+          organization: { select: { name: true } },
+        },
+      });
+      await appendAuditEvent(tx, {
+        tenantId: input.organizationId,
+        actorId: inviterId,
+        action: "invitation.created",
+        targetType: "invitation",
+        targetId: created.id,
+        metadata: { role: input.role },
+      });
+      return created;
     });
     await enqueueInvitationEmail({
       invitationId: invitation.id,
@@ -62,8 +74,8 @@ export async function acceptInvitation(userId: string, token: string) {
     select: { email: true },
   });
   if (user.email !== invitation.email) throw new AppError("FORBIDDEN");
-  await database.$transaction([
-    database.membership.upsert({
+  await database.$transaction(async (tx) => {
+    await tx.membership.upsert({
       where: {
         organizationId_userId: {
           organizationId: invitation.organizationId,
@@ -76,12 +88,20 @@ export async function acceptInvitation(userId: string, token: string) {
         role: invitation.role,
       },
       update: { role: invitation.role },
-    }),
-    database.invitation.update({
+    });
+    await tx.invitation.update({
       where: { id: invitation.id },
       data: { status: "ACCEPTED", acceptedAt: new Date() },
-    }),
-  ]);
+    });
+    await appendAuditEvent(tx, {
+      tenantId: invitation.organizationId,
+      actorId: userId,
+      action: "invitation.accepted",
+      targetType: "invitation",
+      targetId: invitation.id,
+      metadata: { role: invitation.role },
+    });
+  });
 }
 export async function revokeInvitation(userId: string, id: string) {
   const invitation = await database.invitation.findUnique({
@@ -91,10 +111,20 @@ export async function revokeInvitation(userId: string, id: string) {
   if (!invitation) throw new AppError("NOT_FOUND");
   await requirePermission(userId, invitation.organizationId, "members:manage");
   if (invitation.status !== "PENDING") throw new AppError("BAD_REQUEST");
-  return database.invitation.update({
-    where: { id },
-    data: { status: "REVOKED" },
-    select: { id: true, status: true },
+  return database.$transaction(async (tx) => {
+    const revoked = await tx.invitation.update({
+      where: { id },
+      data: { status: "REVOKED" },
+      select: { id: true, status: true },
+    });
+    await appendAuditEvent(tx, {
+      tenantId: invitation.organizationId,
+      actorId: userId,
+      action: "invitation.revoked",
+      targetType: "invitation",
+      targetId: id,
+    });
+    return revoked;
   });
 }
 export async function listInvitations(userId: string, organizationId: string) {

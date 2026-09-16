@@ -935,6 +935,41 @@ h3 {
   background: #fff;
   color: #32634f;
 }
+.analytics-dashboard {
+  margin-top: 42px;
+}
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.analytics-grid article {
+  padding: 18px;
+  border: 1px solid #d7e1dd;
+  border-radius: 8px;
+  background: #fff;
+}
+.analytics-grid strong {
+  display: block;
+  color: #214e3d;
+  font: 700 28px var(--heading-font);
+}
+.analytics-grid span,
+.analytics-statuses {
+  color: #65756e;
+  font-size: 12px;
+}
+.analytics-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+}
+@media (max-width: 760px) {
+  .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
 .notification-center {
   max-width: 760px;

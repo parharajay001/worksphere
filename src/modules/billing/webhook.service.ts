@@ -4,6 +4,7 @@ import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import type { z } from "zod";
 import type { billingWebhookSchema } from "./billing.schemas.ts";
+import { appendAuditEvent } from "../audit/audit.service.ts";
 
 type BillingWebhook = z.infer<typeof billingWebhookSchema>;
 
@@ -69,6 +70,17 @@ export async function processBillingWebhook(
         provider_externalEventId: { provider, externalEventId: event.id },
       },
       data: { processedAt: new Date() },
+    });
+    await appendAuditEvent(tx, {
+      tenantId: event.data.organizationId,
+      action: "billing.subscription_changed",
+      targetType: "subscription",
+      targetId: event.data.subscriptionId,
+      metadata: {
+        plan: event.data.plan,
+        status: event.data.status,
+        eventType: event.type,
+      },
     });
     return { duplicate: false };
   });
