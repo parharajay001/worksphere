@@ -211,3 +211,13 @@ Organization members can read; owners/admins/managers can move tasks. Anonymous
 requests receive 401, nonmembers receive 404, and read-only members receive 403
 on writes. Moves cannot reference tasks outside the URL's project. See
 [Day 12](day-12.md) for ordering, transactions, and verification details.
+
+## Task comments (Day 13)
+
+`GET /api/tasks/:id/comments` returns `{ data: { comments, nextCursor }, meta }`
+with newest-first cursor pagination. `POST` on the same route accepts a trimmed
+`body` of 1-5,000 characters and returns the created comment with status 201.
+`PATCH /api/comments/:id` and `DELETE /api/comments/:id` edit or remove a
+comment. Authors can change their own comments; users with `projects:manage`
+can moderate comments in their organization. All mutations emit an activity
+event in the same transaction. See [Day 13](day-13.md) for the complete contract.
