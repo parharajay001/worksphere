@@ -60,6 +60,10 @@ function mentionToken(candidate: MentionCandidate) {
   return candidate.email.slice(0, candidate.email.indexOf("@")).toLowerCase();
 }
 
+function normalizedName(candidate: MentionCandidate) {
+  return candidate.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export function TaskComments({
   taskId,
   currentUserId,
@@ -92,6 +96,7 @@ export function TaskComments({
         const search = mention.query;
         return (
           candidate.name.toLowerCase().includes(search) ||
+          normalizedName(candidate).includes(search) ||
           candidate.email.toLowerCase().includes(search) ||
           mentionToken(candidate).includes(search)
         );
@@ -318,7 +323,10 @@ export function TaskComments({
                       </span>
                       <span>
                         <strong>{candidate.name}</strong>
-                        <small>@{mentionToken(candidate)}</small>
+                        <small>{candidate.email}</small>
+                      </span>
+                      <span className="mention-option-handle">
+                        @{mentionToken(candidate)}
                       </span>
                     </button>
                   ))

@@ -632,7 +632,7 @@ h3 {
 .mention-option.active {
   background: #f0f6e7;
 }
-.mention-option > span:last-child {
+.mention-option > span:nth-child(2) {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -650,6 +650,13 @@ h3 {
 .mention-option small {
   color: var(--muted);
   font-size: 10px;
+}
+.mention-option-handle {
+  margin-left: auto;
+  padding-left: 8px;
+  color: #6a897b;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .mention-avatar {
   width: 25px;
