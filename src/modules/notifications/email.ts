@@ -3,7 +3,8 @@ export type InvitationEmail = {
   to: string;
   organizationName: string;
   token: string;
+  idempotencyKey: string;
 };
 export type EmailDelivery = (email: InvitationEmail) => Promise<void>;
-/** Provider seam; production wiring can enqueue this without changing invitation logic. */
+/** Provider seam called only by the email worker. Forward idempotencyKey to the provider. */
 export const deliverInvitationEmail: EmailDelivery = async () => undefined;
