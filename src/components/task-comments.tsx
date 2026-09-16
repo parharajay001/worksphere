@@ -65,6 +65,22 @@ function normalizedName(candidate: MentionCandidate) {
   return candidate.name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function usedMentionTokens(
+  value: string,
+  active: ReturnType<typeof mentionRange>,
+) {
+  const withoutActive = active
+    ? `${value.slice(0, active.start)}${value.slice(active.end)}`
+    : value;
+  return new Set(
+    [
+      ...withoutActive.matchAll(
+        /(?:^|[^A-Za-z0-9_.@-])@([A-Za-z0-9][A-Za-z0-9_.-]{0,63})/g,
+      ),
+    ].map((match) => match[1]!.toLowerCase()),
+  );
+}
+
 function renderCommentBody(body: string) {
   const pattern = /(^|[^A-Za-z0-9_.@-])(@[A-Za-z0-9][A-Za-z0-9_.-]{0,63})/g;
   const parts: ReactNode[] = [];
@@ -110,18 +126,21 @@ function MentionTextarea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionMatches = useMemo(() => {
     if (!mention) return [];
+    const used = usedMentionTokens(value, mention);
     return mentionCandidates
       .filter((candidate) => {
         const search = mention.query;
         return (
-          candidate.name.toLowerCase().includes(search) ||
-          normalizedName(candidate).includes(search) ||
-          candidate.email.toLowerCase().includes(search) ||
-          mentionToken(candidate).includes(search)
+          !used.has(mentionToken(candidate)) &&
+          !used.has(normalizedName(candidate)) &&
+          (candidate.name.toLowerCase().includes(search) ||
+            normalizedName(candidate).includes(search) ||
+            candidate.email.toLowerCase().includes(search) ||
+            mentionToken(candidate).includes(search))
         );
       })
       .slice(0, 6);
-  }, [mention, mentionCandidates]);
+  }, [mention, mentionCandidates, value]);
 
   function updateMention(nextValue: string, cursor: number) {
     setMention(mentionRange(nextValue, cursor));
@@ -276,18 +295,21 @@ export function TaskComments({
   const endpoint = `/api/tasks/${taskId}/comments`;
   const mentionMatches = useMemo(() => {
     if (!mention) return [];
+    const used = usedMentionTokens(body, mention);
     return mentionCandidates
       .filter((candidate) => {
         const search = mention.query;
         return (
-          candidate.name.toLowerCase().includes(search) ||
-          normalizedName(candidate).includes(search) ||
-          candidate.email.toLowerCase().includes(search) ||
-          mentionToken(candidate).includes(search)
+          !used.has(mentionToken(candidate)) &&
+          !used.has(normalizedName(candidate)) &&
+          (candidate.name.toLowerCase().includes(search) ||
+            normalizedName(candidate).includes(search) ||
+            candidate.email.toLowerCase().includes(search) ||
+            mentionToken(candidate).includes(search))
         );
       })
       .slice(0, 6);
-  }, [mention, mentionCandidates]);
+  }, [body, mention, mentionCandidates]);
 
   function updateMention(value: string, cursor: number) {
     setMention(mentionRange(value, cursor));

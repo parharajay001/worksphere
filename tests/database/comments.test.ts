@@ -280,6 +280,12 @@ describe(
         }),
         appCode("BAD_REQUEST"),
       );
+      await assert.rejects(
+        comments.createComment(member, mentionTask, {
+          body: "@comment-owner @COMMENT-OWNER",
+        }),
+        appCode("BAD_REQUEST"),
+      );
       const projectPage = await activity.listActivity(
         member,
         { projectId: project },

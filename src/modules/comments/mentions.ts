@@ -7,11 +7,14 @@ const mentionPattern =
 const MAX_MENTIONS = 25;
 
 export function extractMentionTokens(body: string) {
-  const tokens = new Set<string>();
-  for (const match of body.matchAll(mentionPattern))
-    tokens.add(match[1]!.toLowerCase());
-  if (tokens.size > MAX_MENTIONS) throw new AppError("BAD_REQUEST");
-  return [...tokens];
+  const tokens: string[] = [];
+  for (const match of body.matchAll(mentionPattern)) {
+    const token = match[1]!.toLowerCase();
+    if (tokens.includes(token)) throw new AppError("BAD_REQUEST");
+    tokens.push(token);
+  }
+  if (tokens.length > MAX_MENTIONS) throw new AppError("BAD_REQUEST");
+  return tokens;
 }
 
 export type MentionCandidate = { id: string; name: string; email: string };
@@ -40,5 +43,7 @@ export async function resolveMentions(organizationId: string, body: string) {
     if (matches.length !== 1) throw new AppError("BAD_REQUEST");
     return matches[0]!;
   });
+  if (new Set(resolved.map((user) => user.id)).size !== resolved.length)
+    throw new AppError("BAD_REQUEST");
   return resolved;
 }

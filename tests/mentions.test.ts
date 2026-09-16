@@ -3,11 +3,14 @@ import { test } from "node:test";
 import { extractMentionTokens } from "../src/modules/comments/mentions.ts";
 
 test("extracts unique mention tokens without treating email domains as mentions", () => {
-  assert.deepEqual(
-    extractMentionTokens("Hi @Alice, @alice and ( @member-name )."),
-    ["alice", "member-name"],
-  );
+  assert.deepEqual(extractMentionTokens("Hi @Alice and ( @member-name )."), [
+    "alice",
+    "member-name",
+  ]);
   assert.deepEqual(extractMentionTokens("email alice@example.com"), []);
+  assert.throws(() => extractMentionTokens("@Alice please ask @alice"), {
+    code: "BAD_REQUEST",
+  });
 });
 
 test("limits the number of mentions in one comment", () => {
