@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AtSign, Bell, CheckCheck, LoaderCircle } from "lucide-react";
+import { useRealtimeUserEvent } from "@/realtime/use-realtime-room";
 
 type Notification = {
   id: string;
@@ -37,6 +38,25 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  async function reloadNotifications() {
+    try {
+      const response = await fetch("/api/notifications?limit=20", {
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const result = (await response.json()) as { data: Page };
+      setNotifications(result.data.notifications);
+      setUnreadCount(result.data.unreadCount);
+      setNextCursor(result.data.nextCursor);
+    } catch {
+      // REST remains authoritative; a later event or navigation can reconcile.
+    }
+  }
+
+  useRealtimeUserEvent("notification.changed", () => {
+    void reloadNotifications();
+  });
 
   async function markRead(id: string) {
     if (pending) return;

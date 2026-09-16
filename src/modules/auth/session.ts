@@ -52,6 +52,10 @@ export async function clearSession(): Promise<void> {
 
 export async function getSessionUser() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return getSessionUserByToken(token);
+}
+
+export async function getSessionUserByToken(token: string | undefined | null) {
   if (!token || token.length < 40 || token.length > 64) return null;
   const session = await database.session.findUnique({
     where: { tokenHash: hashSessionToken(token) },

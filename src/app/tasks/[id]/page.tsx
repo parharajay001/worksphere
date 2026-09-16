@@ -49,6 +49,7 @@ export default async function TaskPage({
       </a>
       <TaskComments
         taskId={task.id}
+        projectId={task.projectId}
         currentUserId={user.id}
         canManage={hasPermission(membership.role, "projects:manage")}
         initialPage={comments}

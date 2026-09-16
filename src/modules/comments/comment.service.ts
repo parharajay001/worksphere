@@ -6,6 +6,7 @@ import { hasPermission } from "../authorization/permissions.ts";
 import { requirePermission } from "../authorization/guards.ts";
 import { resolveMentions } from "./mentions.ts";
 import { createMentionNotification } from "../notifications/notification.service.ts";
+import { publishRealtimeEvent } from "../../realtime/publisher.ts";
 import type { z } from "zod";
 import type {
   commentQuerySchema,
@@ -108,6 +109,7 @@ export async function createComment(
     context.project.organizationId,
     input.body,
   );
+  const createdNotifications: { id: string; recipientId: string }[] = [];
   const result = await database.$transaction(async (tx) => {
     const comment = await tx.comment.create({
       data: { taskId, authorId: userId, body: input.body },
@@ -130,7 +132,7 @@ export async function createComment(
           metadata: { taskId, commentId: comment.id, mentionedUserId: user.id },
         },
       });
-      await createMentionNotification(tx, {
+      const notification = await createMentionNotification(tx, {
         recipientId: user.id,
         actorId: userId,
         organizationId: context.project.organizationId,
@@ -138,9 +140,33 @@ export async function createComment(
         taskId,
         commentId: comment.id,
       });
+      if (notification)
+        createdNotifications.push({
+          id: notification.id,
+          recipientId: user.id,
+        });
     }
     return present(comment);
   });
+  await publishRealtimeEvent({
+    name: "comment.changed",
+    target: { projectId: context.projectId },
+    payload: {
+      projectId: context.projectId,
+      taskId,
+      commentId: result.id,
+      action: "created",
+    },
+  });
+  await Promise.all(
+    createdNotifications.map((notification) =>
+      publishRealtimeEvent({
+        name: "notification.changed",
+        target: { userId: notification.recipientId },
+        payload: { notificationId: notification.id, action: "created" },
+      }),
+    ),
+  );
   return result;
 }
 
@@ -187,6 +213,7 @@ export async function updateComment(
     input.body,
   );
   try {
+    const createdNotifications: { id: string; recipientId: string }[] = [];
     const result = await database.$transaction(async (tx) => {
       const comment = await tx.comment.update({
         where: { id },
@@ -214,7 +241,7 @@ export async function updateComment(
             },
           },
         });
-        await createMentionNotification(tx, {
+        const notification = await createMentionNotification(tx, {
           recipientId: user.id,
           actorId: userId,
           organizationId: context.comment.task.project.organizationId,
@@ -222,9 +249,33 @@ export async function updateComment(
           taskId: context.comment.taskId,
           commentId: id,
         });
+        if (notification)
+          createdNotifications.push({
+            id: notification.id,
+            recipientId: user.id,
+          });
       }
       return present(comment);
     });
+    await publishRealtimeEvent({
+      name: "comment.changed",
+      target: { projectId: context.comment.task.projectId },
+      payload: {
+        projectId: context.comment.task.projectId,
+        taskId: context.comment.taskId,
+        commentId: id,
+        action: "updated",
+      },
+    });
+    await Promise.all(
+      createdNotifications.map((notification) =>
+        publishRealtimeEvent({
+          name: "notification.changed",
+          target: { userId: notification.recipientId },
+          payload: { notificationId: notification.id, action: "created" },
+        }),
+      ),
+    );
     return result;
   } catch (error) {
     if (
@@ -251,5 +302,15 @@ export async function deleteComment(userId: string, id: string) {
         metadata: { taskId: context.comment.taskId, commentId: id },
       },
     });
+  });
+  await publishRealtimeEvent({
+    name: "comment.changed",
+    target: { projectId: context.comment.task.projectId },
+    payload: {
+      projectId: context.comment.task.projectId,
+      taskId: context.comment.taskId,
+      commentId: id,
+      action: "deleted",
+    },
   });
 }
