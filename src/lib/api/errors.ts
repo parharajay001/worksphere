@@ -24,6 +24,10 @@ const errorDefinitions = {
     message: "Use an application/json content type.",
   },
   RATE_LIMITED: { status: 429, message: "Too many requests. Try again later." },
+  PLAN_LIMIT_REACHED: {
+    status: 403,
+    message: "This organization has reached its plan limit.",
+  },
   INTERNAL_ERROR: { status: 500, message: "An unexpected error occurred." },
   SERVICE_UNAVAILABLE: {
     status: 503,

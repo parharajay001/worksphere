@@ -54,6 +54,23 @@ enum ConversationKind {
   TEAM
 }
 
+enum BillingPlan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum UsageMetric {
+  CHAT_MESSAGES
+}
+
 model User {
   id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String           @unique @db.VarChar(254)
@@ -132,6 +149,9 @@ model Organization {
   projects      Project[]
   notifications Notification[]
   conversations Conversation[]
+  subscription  BillingSubscription?
+  usageCounters UsageCounter[]
+  billingEvents BillingWebhookEvent[]
 }
 
 model Membership {
@@ -363,4 +383,50 @@ model ChatAttachment {
   message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+}
+
+model BillingSubscription {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId         String             @unique @db.Uuid
+  provider               String             @db.VarChar(40)
+  externalCustomerId     String?            @db.VarChar(255)
+  externalSubscriptionId String?            @db.VarChar(255)
+  plan                   BillingPlan        @default(FREE)
+  status                 SubscriptionStatus
+  currentPeriodEnd       DateTime?           @db.Timestamptz(3)
+  cancelAtPeriodEnd      Boolean             @default(false)
+  createdAt              DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime            @default(now()) @updatedAt @db.Timestamptz(3)
+  organization           Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, externalCustomerId])
+  @@unique([provider, externalSubscriptionId])
+  @@index([status, currentPeriodEnd])
+}
+
+model UsageCounter {
+  organizationId String      @db.Uuid
+  metric         UsageMetric
+  periodStart    DateTime    @db.Date
+  count          Int         @default(0)
+  updatedAt      DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, metric, periodStart])
+  @@index([metric, periodStart])
+}
+
+model BillingWebhookEvent {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider        String        @db.VarChar(40)
+  externalEventId String        @db.VarChar(255)
+  eventType       String        @db.VarChar(80)
+  payloadHash     String        @db.Char(64)
+  organizationId String?       @db.Uuid
+  receivedAt      DateTime      @default(now()) @db.Timestamptz(3)
+  processedAt     DateTime?     @db.Timestamptz(3)
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalEventId])
+  @@index([organizationId, receivedAt])
 }

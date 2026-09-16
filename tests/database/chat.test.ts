@@ -19,6 +19,9 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
   const admin = new pg.Client({ connectionString: adminUrl.toString() });
   let db: (typeof import("../../src/database/client.ts"))["database"];
   let chat: typeof import("../../src/modules/chat/chat.service.ts");
+  let projects: typeof import("../../src/modules/projects/project.service.ts");
+  let billing: typeof import("../../src/modules/billing/billing.service.ts");
+  let webhooks: typeof import("../../src/modules/billing/webhook.service.ts");
   let owner = "";
   let member = "";
   let outsider = "";
@@ -52,6 +55,9 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       process.env.DATABASE_URL = testUrl.toString();
       db = (await import("../../src/database/client.ts")).database;
       chat = await import("../../src/modules/chat/chat.service.ts");
+      projects = await import("../../src/modules/projects/project.service.ts");
+      billing = await import("../../src/modules/billing/billing.service.ts");
+      webhooks = await import("../../src/modules/billing/webhook.service.ts");
       owner = (
         await db.user.create({
           data: { name: "Owner", email: "chat-owner@test.example" },
@@ -152,6 +158,54 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
     await assert.rejects(
       chat.ensureConversation(outsider, { teamId: team }),
       appCode("NOT_FOUND"),
+    );
+  });
+
+  test("enforces Free project limits and processes subscription webhooks once", async () => {
+    const organizationId = (
+      await db.project.findUniqueOrThrow({
+        where: { id: project },
+        select: { organizationId: true },
+      })
+    ).organizationId;
+    await projects.createProject(owner, { organizationId, name: "Second" });
+    await projects.createProject(owner, { organizationId, name: "Third" });
+    await assert.rejects(
+      projects.createProject(owner, { organizationId, name: "Fourth" }),
+      appCode("PLAN_LIMIT_REACHED"),
+    );
+
+    const event = {
+      id: "billing-event-1",
+      type: "subscription.updated" as const,
+      data: {
+        organizationId,
+        customerId: "customer-1",
+        subscriptionId: "subscription-1",
+        plan: "PRO" as const,
+        status: "ACTIVE" as const,
+        currentPeriodEnd: "2026-10-16T00:00:00.000Z",
+        cancelAtPeriodEnd: false,
+      },
+    };
+    const raw = new TextEncoder().encode(JSON.stringify(event));
+    assert.deepEqual(await webhooks.processBillingWebhook("test", event, raw), {
+      duplicate: false,
+    });
+    assert.deepEqual(await webhooks.processBillingWebhook("test", event, raw), {
+      duplicate: true,
+    });
+    assert.equal(await billing.effectivePlan(db, organizationId), "PRO");
+    assert.equal(
+      (await projects.createProject(owner, { organizationId, name: "Fourth" }))
+        .name,
+      "Fourth",
+    );
+    assert.equal(
+      await db.billingWebhookEvent.count({
+        where: { externalEventId: event.id },
+      }),
+      1,
     );
   });
 });

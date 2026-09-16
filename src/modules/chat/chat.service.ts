@@ -11,6 +11,7 @@ import type {
   createMessageSchema,
   messageQuerySchema,
 } from "./chat.schemas.ts";
+import { consumeChatMessage } from "../billing/billing.service.ts";
 
 type CreateConversation = z.infer<typeof createConversationSchema>;
 type CreateMessage = z.infer<typeof createMessageSchema>;
@@ -162,6 +163,7 @@ export async function createMessage(
 ) {
   const conversation = await conversationAccess(userId, conversationId);
   const message = await database.$transaction(async (tx) => {
+    await consumeChatMessage(tx, conversation.organizationId);
     const created = await tx.chatMessage.create({
       data: { conversationId, authorId: userId, body: input.body },
       select: messageSelect,

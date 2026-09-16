@@ -16,6 +16,7 @@ import type {
   createProjectSchema,
   updateProjectSchema,
 } from "./project.schemas.ts";
+import { assertProjectAllowance } from "../billing/billing.service.ts";
 const slugify = (name: string) =>
   name
     .toLowerCase()
@@ -97,23 +98,27 @@ export async function createProject(userId: string, input: CreateInput) {
     if (!team) throw new AppError("NOT_FOUND");
   }
   try {
-    const project = await database.project.create({
-      data: {
-        organizationId: input.organizationId,
-        teamId: input.teamId,
-        ownerId: userId,
-        name: input.name,
-        slug: slugify(input.name),
-        description: input.description,
-      },
-      select,
-    });
-    await database.activityEvent.create({
-      data: {
-        projectId: project.id,
-        actorId: userId,
-        action: "project.created",
-      },
+    const project = await database.$transaction(async (tx) => {
+      await assertProjectAllowance(tx, input.organizationId);
+      const created = await tx.project.create({
+        data: {
+          organizationId: input.organizationId,
+          teamId: input.teamId,
+          ownerId: userId,
+          name: input.name,
+          slug: slugify(input.name),
+          description: input.description,
+        },
+        select,
+      });
+      await tx.activityEvent.create({
+        data: {
+          projectId: created.id,
+          actorId: userId,
+          action: "project.created",
+        },
+      });
+      return created;
     });
     await invalidateProjectList(input.organizationId);
     return project;
