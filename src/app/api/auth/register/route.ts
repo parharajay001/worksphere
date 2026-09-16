@@ -12,7 +12,7 @@ export const POST = createApiHandler(
   { route: "/api/auth/register" },
   async (request) => {
     const input = await parseJson(request, registrationSchema);
-    enforceAuthRateLimit(
+    await enforceAuthRateLimit(
       "register",
       request.headers.get("x-forwarded-for") ?? "unknown",
     );

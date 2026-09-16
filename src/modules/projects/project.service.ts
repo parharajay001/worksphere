@@ -3,6 +3,14 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
+import {
+  invalidateCache,
+  getCachedJson,
+  projectListKey,
+  PROJECT_LIST_TTL_SECONDS,
+  setCachedJson,
+  type CacheState,
+} from "../../cache/cache.ts";
 import type { z } from "zod";
 import type {
   createProjectSchema,
@@ -30,12 +38,49 @@ const select = {
 type CreateInput = z.infer<typeof createProjectSchema>;
 type UpdateInput = z.infer<typeof updateProjectSchema>;
 export async function listProjects(userId: string, organizationId: string) {
-  await requirePermission(userId, organizationId, "organization:read");
+  return (await listProjectsWithCache(userId, organizationId)).projects;
+}
+
+async function queryProjects(organizationId: string) {
   return database.project.findMany({
     where: { organizationId },
     orderBy: { updatedAt: "desc" },
     select,
   });
+}
+
+type ProjectList = Awaited<ReturnType<typeof queryProjects>>;
+
+function reviveProjectList(value: ProjectList) {
+  return value.map((project) => ({
+    ...project,
+    createdAt: new Date(project.createdAt),
+    updatedAt: new Date(project.updatedAt),
+  }));
+}
+
+export async function listProjectsWithCache(
+  userId: string,
+  organizationId: string,
+) {
+  await requirePermission(userId, organizationId, "organization:read");
+  const key = projectListKey(organizationId);
+  const cached = await getCachedJson<ProjectList>(key);
+  if (cached.state === "hit")
+    return {
+      projects: reviveProjectList(cached.value),
+      cache: "hit" as CacheState,
+    };
+  const projects = await queryProjects(organizationId);
+  const stored = await setCachedJson(key, projects, PROJECT_LIST_TTL_SECONDS);
+  return {
+    projects,
+    cache: stored ? ("miss" as CacheState) : ("unavailable" as CacheState),
+  };
+}
+
+export function invalidateProjectList(organizationId: string) {
+  return invalidateCache(projectListKey(organizationId));
 }
 export async function getProject(userId: string, id: string) {
   const project = await database.project.findUnique({ where: { id }, select });
@@ -70,6 +115,7 @@ export async function createProject(userId: string, input: CreateInput) {
         action: "project.created",
       },
     });
+    await invalidateProjectList(input.organizationId);
     return project;
   } catch (error) {
     if (
@@ -104,6 +150,7 @@ export async function updateProject(
       metadata: input,
     },
   });
+  await invalidateProjectList(project.organizationId);
   return updated;
 }
 export async function deleteProject(userId: string, id: string) {
@@ -114,6 +161,7 @@ export async function deleteProject(userId: string, id: string) {
   if (!project) throw new AppError("NOT_FOUND");
   await requirePermission(userId, project.organizationId, "projects:manage");
   await database.project.delete({ where: { id } });
+  await invalidateProjectList(project.organizationId);
 }
 export async function addProjectMember(
   userId: string,

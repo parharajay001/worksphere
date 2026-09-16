@@ -4,6 +4,7 @@ import {
   parseDatabaseEnvironment,
   parseEnvironment,
 } from "../src/config/env.ts";
+import { parseRedisEnvironment } from "../src/config/redis.ts";
 
 const DATABASE_URL =
   "postgresql://local:local@localhost:54329/worksphere?schema=public";
@@ -108,4 +109,19 @@ test("rejects missing, malformed, non-Postgres, and incomplete database URLs", (
       },
     );
   }
+});
+
+test("accepts Redis URL configuration and provides a local default", () => {
+  assert.deepEqual(parseRedisEnvironment({}), {
+    REDIS_URL: "redis://localhost:6379",
+  });
+  assert.equal(
+    parseRedisEnvironment({ REDIS_URL: "rediss://cache.example:6380" })
+      .REDIS_URL,
+    "rediss://cache.example:6380",
+  );
+  assert.throws(
+    () => parseRedisEnvironment({ REDIS_URL: "https://cache.example" }),
+    /Invalid environment: REDIS_URL/,
+  );
 });

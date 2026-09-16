@@ -12,7 +12,7 @@ export const POST = createApiHandler(
   { route: "/api/auth/login" },
   async (request) => {
     const input = await parseJson(request, loginSchema);
-    enforceAuthRateLimit(
+    await enforceAuthRateLimit(
       "login",
       `${request.headers.get("x-forwarded-for") ?? "unknown"}:${input.email}`,
     );

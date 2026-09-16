@@ -5,6 +5,7 @@ import { AppError } from "../../lib/api/errors.ts";
 import type { z } from "zod";
 import type { notificationQuerySchema } from "./notification.schemas.ts";
 import { notificationKindForEvent } from "./mapping.ts";
+import { getNotificationPreferences } from "./preferences.ts";
 
 type Query = z.infer<typeof notificationQuerySchema>;
 
@@ -131,6 +132,8 @@ export async function createMentionNotification(
     commentId: string;
   },
 ) {
+  const preferences = await getNotificationPreferences(data.recipientId);
+  if (!preferences.mentionInApp) return null;
   return client.notification.create({
     data: {
       ...data,

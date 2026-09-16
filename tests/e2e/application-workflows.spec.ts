@@ -99,6 +99,32 @@ test("organization, invitation, team, project, and task APIs enforce the full wo
         }),
       )
     ).data.project;
+    const projectsUrl = `/api/projects?organizationId=${organization.id}`;
+    const firstProjectRead = await json(await owner.get(projectsUrl));
+    expect(firstProjectRead.data.projects).toHaveLength(1);
+    const secondProjectRead = await json(await owner.get(projectsUrl));
+    expect(secondProjectRead.data.projects).toHaveLength(1);
+    if (firstProjectRead.data.cache !== "unavailable") {
+      expect(firstProjectRead.data.cache).toBe("miss");
+      expect(secondProjectRead.data.cache).toBe("hit");
+    }
+    const followupProject = (
+      await json(
+        await owner.post("/api/projects", {
+          data: {
+            organizationId: organization.id,
+            name: `Follow-up ${suffix}`,
+          },
+        }),
+      )
+    ).data.project;
+    const afterProjectWrite = await json(await owner.get(projectsUrl));
+    expect(afterProjectWrite.data.projects).toHaveLength(2);
+    if (afterProjectWrite.data.cache !== "unavailable")
+      expect(afterProjectWrite.data.cache).toBe("miss");
+    expect(
+      (await owner.delete(`/api/projects/${followupProject.id}`)).status(),
+    ).toBe(204);
     await json(
       await owner.post(`/api/projects/${project.id}/members`, {
         data: {
