@@ -16,7 +16,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const POST = createApiHandler(
-  { route: "/api/billing/webhooks/:provider" },
+  { route: "/api/billing/webhooks/:provider", csrf: false },
   async (request, context) => {
     const { provider } = await parseParams(
       context.params,

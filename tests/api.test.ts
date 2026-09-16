@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import test from "node:test";
+import test, { after } from "node:test";
 import { z } from "zod";
 import { AppError } from "../src/lib/api/errors.ts";
 import { createApiHandler } from "../src/lib/api/handler.ts";
@@ -16,8 +16,12 @@ import {
   writeRequestLog,
   type RequestLog,
 } from "../src/lib/logging/request-logger.ts";
+import { enforceSameOrigin } from "../src/lib/api/request-security.ts";
 import { createHealthService } from "../src/modules/health/health.service.ts";
 import { healthQuerySchema } from "../src/modules/health/health.schema.ts";
+import { closeRedisClient } from "../src/cache/redis-client.ts";
+
+after(async () => closeRedisClient());
 
 const jsonRequest = (
   body: string,
@@ -235,6 +239,48 @@ test("a failing log writer does not turn completed work into an error response",
   assert.equal(response.status, 200);
   assert.equal(output.length, 1);
   assert.ok(!output[0]?.includes("sink secret"));
+});
+
+test("unsafe requests reject cross-site origins before mutation work", async () => {
+  const crossSite = new Request("http://localhost/api/example", {
+    method: "POST",
+    headers: {
+      origin: "https://attacker.example",
+      "sec-fetch-site": "cross-site",
+    },
+  });
+  assert.throws(() => enforceSameOrigin(crossSite), hasCode("FORBIDDEN"));
+
+  let calls = 0;
+  const response = await createApiHandler(
+    { route: "/api/example", log: () => {} },
+    () => {
+      calls++;
+      return success({ ok: true });
+    },
+  )(crossSite);
+  assert.equal(response.status, 403);
+  assert.equal(calls, 0);
+
+  enforceSameOrigin(
+    new Request("http://localhost/api/example", {
+      method: "POST",
+      headers: { origin: "http://localhost" },
+    }),
+  );
+});
+
+test("signed callback handlers can explicitly opt out of browser CSRF checks", async () => {
+  const response = await createApiHandler(
+    { route: "/api/callback", csrf: false, log: () => {} },
+    () => success({ accepted: true }),
+  )(
+    new Request("http://localhost/api/callback", {
+      method: "POST",
+      headers: { origin: "https://provider.example" },
+    }),
+  );
+  assert.equal(response.status, 200);
 });
 
 test("schema validation supports typed transformations, defaults, and async refinements", async () => {
