@@ -35,6 +35,7 @@ import {
   type BoardTask,
   type TaskStatus,
 } from "@/modules/tasks/board";
+import { useRealtimeRoom } from "@/realtime/use-realtime-room";
 
 type Move = (id: string, status: TaskStatus, index: number) => void;
 
@@ -229,6 +230,14 @@ export function KanbanBoard({
     }),
   );
   const endpoint = `/api/projects/${projectId}/board`;
+
+  useRealtimeRoom<{ projectId: string }>(
+    { kind: "project", id: projectId },
+    "task.changed",
+    (event) => {
+      if (event.projectId === projectId && !busy.current) void reloadBoard();
+    },
+  );
 
   async function reloadBoard() {
     const response = await fetch(endpoint, { cache: "no-store" });

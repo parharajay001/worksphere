@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import type { MentionCandidate } from "@/modules/comments/mentions";
+import { useRealtimeRoom } from "@/realtime/use-realtime-room";
 
 type Comment = {
   id: string;
@@ -270,12 +271,14 @@ function MentionTextarea({
 
 export function TaskComments({
   taskId,
+  projectId,
   currentUserId,
   canManage,
   initialPage,
   mentionCandidates,
 }: {
   taskId: string;
+  projectId: string;
   currentUserId: string;
   canManage: boolean;
   initialPage: Page;
@@ -293,6 +296,29 @@ export function TaskComments({
   const [activeMention, setActiveMention] = useState(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const endpoint = `/api/tasks/${taskId}/comments`;
+
+  async function reloadComments() {
+    try {
+      const response = await fetch(`${endpoint}?limit=20`, {
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const result = (await response.json()) as { data: Page };
+      setComments(result.data.comments);
+      setNextCursor(result.data.nextCursor);
+    } catch {
+      // REST remains authoritative; a later event or navigation can reconcile.
+    }
+  }
+
+  useRealtimeRoom<{ projectId: string; taskId: string }>(
+    { kind: "project", id: projectId },
+    "comment.changed",
+    (event) => {
+      if (event.projectId === projectId && event.taskId === taskId)
+        void reloadComments();
+    },
+  );
   const mentionMatches = useMemo(() => {
     if (!mention) return [];
     const used = usedMentionTokens(body, mention);

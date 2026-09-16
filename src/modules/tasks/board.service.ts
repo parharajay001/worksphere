@@ -6,6 +6,7 @@ import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
 import { advanceBoard } from "./board.repository.ts";
 import { reorderTasks, type Board } from "./board.ts";
+import { publishRealtimeEvent } from "../../realtime/publisher.ts";
 import type { moveTaskSchema } from "./board.schemas.ts";
 
 async function authorize(userId: string, projectId: string, write: boolean) {
@@ -65,7 +66,7 @@ export async function moveTask(
   input: z.infer<typeof moveTaskSchema>,
 ) {
   await authorize(userId, projectId, true);
-  return database.$transaction(async (tx) => {
+  const board = await database.$transaction(async (tx) => {
     await advanceBoard(tx, projectId, input.revision);
     const tasks = await tx.task.findMany({
       where: { projectId },
@@ -108,4 +109,14 @@ export async function moveTask(
     });
     return snapshot(tx, projectId);
   });
+  await publishRealtimeEvent({
+    name: "task.changed",
+    target: { projectId },
+    payload: {
+      projectId,
+      taskId: input.taskId,
+      action: "moved",
+    },
+  });
+  return board;
 }

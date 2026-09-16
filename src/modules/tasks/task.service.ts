@@ -2,6 +2,7 @@ import "server-only";
 import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
+import { publishRealtimeEvent } from "../../realtime/publisher.ts";
 import { advanceBoard, nextPosition } from "./board.repository.ts";
 import type { z } from "zod";
 import type {
@@ -81,10 +82,10 @@ export async function getTask(userId: string, id: string) {
 export async function createTask(userId: string, input: Create) {
   const project = await projectFor(userId, input.projectId, "projects:manage");
   await validateAssignee(project.organizationId, input.assigneeId);
-  return database.$transaction(async (tx) => {
+  const task = await database.$transaction(async (tx) => {
     await advanceBoard(tx, input.projectId);
     const status = input.status ?? "TODO";
-    const task = await tx.task.create({
+    const created = await tx.task.create({
       data: {
         projectId: input.projectId,
         reporterId: userId,
@@ -103,11 +104,21 @@ export async function createTask(userId: string, input: Create) {
         projectId: input.projectId,
         actorId: userId,
         action: "task.created",
-        metadata: { taskId: task.id },
+        metadata: { taskId: created.id },
       },
     });
-    return task;
+    return created;
   });
+  await publishRealtimeEvent({
+    name: "task.changed",
+    target: { projectId: input.projectId },
+    payload: {
+      projectId: input.projectId,
+      taskId: task.id,
+      action: "created",
+    },
+  });
+  return task;
 }
 export async function updateTask(userId: string, id: string, input: Update) {
   const task = await database.task.findUnique({
@@ -117,14 +128,14 @@ export async function updateTask(userId: string, id: string, input: Update) {
   if (!task) throw new AppError("NOT_FOUND");
   const project = await projectFor(userId, task.projectId, "projects:manage");
   await validateAssignee(project.organizationId, input.assigneeId);
-  return database.$transaction(async (tx) => {
+  const updated = await database.$transaction(async (tx) => {
     await advanceBoard(tx, task.projectId);
     const current = await tx.task.findUnique({
       where: { id },
       select: { status: true },
     });
     if (!current) throw new AppError("NOT_FOUND");
-    const updated = await tx.task.update({
+    const result = await tx.task.update({
       where: { id },
       data: {
         ...input,
@@ -145,8 +156,14 @@ export async function updateTask(userId: string, id: string, input: Update) {
         metadata: { taskId: id },
       },
     });
-    return updated;
+    return result;
   });
+  await publishRealtimeEvent({
+    name: "task.changed",
+    target: { projectId: task.projectId },
+    payload: { projectId: task.projectId, taskId: id, action: "updated" },
+  });
+  return updated;
 }
 export async function deleteTask(userId: string, id: string) {
   const task = await database.task.findUnique({
@@ -161,5 +178,10 @@ export async function deleteTask(userId: string, id: string) {
       where: { id, projectId: task.projectId },
     });
     if (deleted.count !== 1) throw new AppError("NOT_FOUND");
+  });
+  await publishRealtimeEvent({
+    name: "task.changed",
+    target: { projectId: task.projectId },
+    payload: { projectId: task.projectId, taskId: id, action: "deleted" },
   });
 }
