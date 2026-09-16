@@ -6,7 +6,9 @@ import { getBoard } from "@/modules/tasks/board.service";
 import { requirePermission } from "@/modules/authorization/guards";
 import { hasPermission } from "@/modules/authorization/permissions";
 import { AppError } from "@/lib/api/errors";
-import { taskIdSchema } from "@/modules/tasks/task.schemas";
+import { projectIdSchema } from "@/modules/projects/project.schemas";
+import { listActivity } from "@/modules/activity/activity.service";
+import { ActivityFeed } from "@/components/activity-feed";
 export const dynamic = "force-dynamic";
 export default async function ProjectPage({
   params,
@@ -15,7 +17,7 @@ export default async function ProjectPage({
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const parsed = taskIdSchema.safeParse(await params);
+  const parsed = projectIdSchema.safeParse(await params);
   if (!parsed.success) notFound();
   let project;
   try {
@@ -30,6 +32,11 @@ export default async function ProjectPage({
     "organization:read",
   );
   const board = await getBoard(user.id, project.id);
+  const activity = await listActivity(
+    user.id,
+    { projectId: project.id },
+    { limit: 25 },
+  );
   return (
     <article className="overview project-board-page">
       <p className="eyebrow accent">{project.status} project</p>
@@ -48,6 +55,11 @@ export default async function ProjectPage({
         projectId={project.id}
         initialBoard={board}
         canManage={hasPermission(membership.role, "projects:manage")}
+      />
+      <ActivityFeed
+        endpoint={`/api/projects/${project.id}/activity`}
+        initialPage={activity}
+        title="Project activity"
       />
     </article>
   );
