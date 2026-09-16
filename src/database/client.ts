@@ -10,7 +10,9 @@ const globalDatabase = globalThis as unknown as {
 // Reuse it only when the generated client has the current model surface.
 const reusableDatabase = globalDatabase.worksphereDatabase;
 export const database =
-  reusableDatabase && "comment" in reusableDatabase
+  reusableDatabase &&
+  "comment" in reusableDatabase &&
+  "notification" in reusableDatabase
     ? reusableDatabase
     : createDatabaseClient(parseDatabaseEnvironment(process.env).DATABASE_URL);
 

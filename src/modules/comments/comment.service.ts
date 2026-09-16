@@ -5,7 +5,7 @@ import { AppError } from "../../lib/api/errors.ts";
 import { hasPermission } from "../authorization/permissions.ts";
 import { requirePermission } from "../authorization/guards.ts";
 import { resolveMentions } from "./mentions.ts";
-import { deliverMentionNotification } from "../notifications/mentions.ts";
+import { createMentionNotification } from "../notifications/notification.service.ts";
 import type { z } from "zod";
 import type {
   commentQuerySchema,
@@ -130,19 +130,17 @@ export async function createComment(
           metadata: { taskId, commentId: comment.id, mentionedUserId: user.id },
         },
       });
+      await createMentionNotification(tx, {
+        recipientId: user.id,
+        actorId: userId,
+        organizationId: context.project.organizationId,
+        projectId: context.projectId,
+        taskId,
+        commentId: comment.id,
+      });
     }
     return present(comment);
   });
-  await Promise.allSettled(
-    mentionedUsers.map((user) =>
-      deliverMentionNotification({
-        recipientId: user.id,
-        actorId: userId,
-        taskId,
-        commentId: result.id,
-      }),
-    ),
-  );
   return result;
 }
 
@@ -216,19 +214,17 @@ export async function updateComment(
             },
           },
         });
+        await createMentionNotification(tx, {
+          recipientId: user.id,
+          actorId: userId,
+          organizationId: context.comment.task.project.organizationId,
+          projectId: context.comment.task.projectId,
+          taskId: context.comment.taskId,
+          commentId: id,
+        });
       }
       return present(comment);
     });
-    await Promise.allSettled(
-      mentionedUsers.map((user) =>
-        deliverMentionNotification({
-          recipientId: user.id,
-          actorId: userId,
-          taskId: context.comment.taskId,
-          commentId: id,
-        }),
-      ),
-    );
     return result;
   } catch (error) {
     if (

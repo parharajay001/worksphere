@@ -19,21 +19,25 @@ enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
 }
+
 enum InvitationStatus {
   PENDING
   ACCEPTED
   REVOKED
 }
+
 enum ProjectStatus {
   ACTIVE
   ARCHIVED
 }
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
   REVIEW
   DONE
 }
+
 enum TaskPriority {
   LOW
   MEDIUM
@@ -41,26 +45,32 @@ enum TaskPriority {
   URGENT
 }
 
+enum NotificationKind {
+  MENTION
+}
+
 model User {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email           String       @unique @db.VarChar(254)
-  name            String       @db.VarChar(100)
-  emailVerifiedAt DateTime?    @db.Timestamptz(3)
-  passwordHash    String?
-  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
-  accounts        Account[]
-  sessions        Session[]
-  memberships     Membership[]
-  authTokens      AuthToken[]
-  sentInvitations Invitation[] @relation("InvitationInviter")
-  teamMemberships TeamMembership[]
-  ownedProjects Project[]
-  projectMemberships ProjectMember[]
-  activityEvents ActivityEvent[]
-  comments      Comment[]
-  reportedTasks Task[] @relation("TaskReporter")
-  assignedTasks Task[] @relation("TaskAssignee")
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String           @unique @db.VarChar(254)
+  name                  String           @db.VarChar(100)
+  emailVerifiedAt       DateTime?        @db.Timestamptz(3)
+  passwordHash          String?
+  createdAt             DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  accounts              Account[]
+  sessions              Session[]
+  memberships           Membership[]
+  authTokens            AuthToken[]
+  sentInvitations       Invitation[]     @relation("InvitationInviter")
+  teamMemberships       TeamMembership[]
+  ownedProjects         Project[]
+  projectMemberships    ProjectMember[]
+  activityEvents        ActivityEvent[]
+  comments              Comment[]
+  receivedNotifications Notification[]   @relation("NotificationRecipient")
+  sentNotifications     Notification[]   @relation("NotificationActor")
+  reportedTasks         Task[]           @relation("TaskReporter")
+  assignedTasks         Task[]           @relation("TaskAssignee")
 }
 
 model AuthToken {
@@ -104,15 +114,16 @@ model Session {
 }
 
 model Organization {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String       @db.VarChar(100)
-  slug        String       @unique @db.VarChar(63)
-  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
-  memberships Membership[]
-  invitations  Invitation[]
-  teams        Team[]
-  projects     Project[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String         @db.VarChar(100)
+  slug          String         @unique @db.VarChar(63)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
+  memberships   Membership[]
+  invitations   Invitation[]
+  teams         Team[]
+  projects      Project[]
+  notifications Notification[]
 }
 
 model Membership {
@@ -142,6 +153,7 @@ model Invitation {
   createdAt      DateTime         @default(now()) @db.Timestamptz(3)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inviter        User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
   @@index([organizationId, status])
   @@index([email, status])
   @@index([expiresAt])
@@ -157,6 +169,7 @@ model Team {
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    TeamMembership[]
   projects       Project[]
+
   @@unique([organizationId, slug])
   @@index([organizationId])
 }
@@ -168,28 +181,31 @@ model TeamMembership {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([teamId, userId])
   @@index([userId])
 }
 
 model Project {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String        @db.Uuid
-  teamId         String?       @db.Uuid
-  ownerId        String        @db.Uuid
-  name           String        @db.VarChar(120)
-  slug           String        @db.VarChar(63)
-  description    String?       @db.VarChar(1000)
-  status         ProjectStatus @default(ACTIVE)
-  boardRevision  Int           @default(0)
-  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime      @default(now()) @updatedAt @db.Timestamptz(3)
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  team           Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  owner          User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String          @db.Uuid
+  teamId         String?         @db.Uuid
+  ownerId        String          @db.Uuid
+  name           String          @db.VarChar(120)
+  slug           String          @db.VarChar(63)
+  description    String?         @db.VarChar(1000)
+  status         ProjectStatus   @default(ACTIVE)
+  boardRevision  Int             @default(0)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   members        ProjectMember[]
   events         ActivityEvent[]
+  notifications  Notification[]
   tasks          Task[]
+
   @@unique([organizationId, slug])
   @@index([organizationId, status])
   @@index([teamId])
@@ -202,6 +218,7 @@ model ProjectMember {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([projectId, userId])
   @@index([userId])
 }
@@ -215,26 +232,52 @@ model ActivityEvent {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
   @@index([projectId, createdAt])
 }
 
+model Notification {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId    String           @db.Uuid
+  actorId        String?          @db.Uuid
+  organizationId String           @db.Uuid
+  projectId      String?          @db.Uuid
+  taskId         String?          @db.Uuid
+  commentId      String?          @db.Uuid
+  kind           NotificationKind
+  metadata       Json?
+  readAt         DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  recipient      User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor          User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task           Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  comment        Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([recipientId, createdAt])
+}
+
 model Task {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  projectId      String       @db.Uuid
-  reporterId     String       @db.Uuid
-  assigneeId     String?      @db.Uuid
-  title          String       @db.VarChar(200)
-  description    String?      @db.VarChar(5000)
-  status         TaskStatus   @default(TODO)
-  position       Int          @default(0)
-  priority       TaskPriority @default(MEDIUM)
-  dueDate        DateTime?    @db.Timestamptz(3)
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
-  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reporter       User         @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
-  assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  comments       Comment[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId     String         @db.Uuid
+  reporterId    String         @db.Uuid
+  assigneeId    String?        @db.Uuid
+  title         String         @db.VarChar(200)
+  description   String?        @db.VarChar(5000)
+  status        TaskStatus     @default(TODO)
+  position      Int            @default(0)
+  priority      TaskPriority   @default(MEDIUM)
+  dueDate       DateTime?      @db.Timestamptz(3)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter      User           @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  assignee      User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments      Comment[]
+  notifications Notification[]
+
   @@index([projectId, status, priority])
   @@index([projectId, status, position])
   @@index([assigneeId])
@@ -242,14 +285,15 @@ model Task {
 }
 
 model Comment {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  taskId    String   @db.Uuid
-  authorId  String   @db.Uuid
-  body      String   @db.VarChar(5000)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId        String         @db.Uuid
+  authorId      String         @db.Uuid
+  body          String         @db.VarChar(5000)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
+  task          Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  notifications Notification[]
 
   @@index([taskId, createdAt, id])
   @@index([authorId])
