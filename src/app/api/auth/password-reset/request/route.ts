@@ -11,7 +11,7 @@ export const POST = createApiHandler(
   { route: "/api/auth/password-reset/request" },
   async (request) => {
     const input = await parseJson(request, emailSchema);
-    enforceAuthRateLimit(
+    await enforceAuthRateLimit(
       "recovery",
       `${request.headers.get("x-forwarded-for") ?? "unknown"}:${input.email}`,
     );

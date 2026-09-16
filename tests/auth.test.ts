@@ -67,18 +67,25 @@ test("auth schemas normalize valid credentials and reject weak or unknown input"
   );
 });
 
-test("sensitive auth actions are rate limited with a retry hint", () => {
+test("sensitive auth actions are rate limited with a retry hint", async () => {
+  const redisDisabled = process.env.REDIS_DISABLED;
+  process.env.REDIS_DISABLED = "true";
   clearAuthRateLimits();
-  for (let attempt = 0; attempt < 10; attempt += 1)
-    enforceAuthRateLimit("login", "test-client");
-  assert.throws(
-    () => enforceAuthRateLimit("login", "test-client"),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === "RATE_LIMITED" &&
-      new Headers(error.headers).has("Retry-After"),
-  );
-  clearAuthRateLimits();
+  try {
+    for (let attempt = 0; attempt < 10; attempt += 1)
+      await enforceAuthRateLimit("login", "test-client");
+    await assert.rejects(
+      enforceAuthRateLimit("login", "test-client"),
+      (error: unknown) =>
+        error instanceof AppError &&
+        error.code === "RATE_LIMITED" &&
+        new Headers(error.headers).has("Retry-After"),
+    );
+  } finally {
+    clearAuthRateLimits();
+    if (redisDisabled === undefined) delete process.env.REDIS_DISABLED;
+    else process.env.REDIS_DISABLED = redisDisabled;
+  }
 });
 
 test("RBAC permission matrix grants least privilege by role", () => {

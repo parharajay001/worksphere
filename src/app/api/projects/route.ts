@@ -6,7 +6,7 @@ import { getSessionUser } from "@/modules/auth/session";
 import { createProjectSchema } from "@/modules/projects/project.schemas";
 import {
   createProject,
-  listProjects,
+  listProjectsWithCache,
 } from "@/modules/projects/project.service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export const GET = createApiHandler(
       "organizationId",
     );
     if (!organizationId) throw new AppError("VALIDATION_ERROR");
-    return success({ projects: await listProjects(user.id, organizationId) });
+    return success(await listProjectsWithCache(user.id, organizationId));
   },
 );
 export const POST = createApiHandler(

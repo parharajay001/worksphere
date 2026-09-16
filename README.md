@@ -4,7 +4,7 @@ A multi-tenant project management and collaboration app, built as a modular
 monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
 MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
-**Current milestone: Day 15 - notifications.**
+**Current milestone: Day 16 - Redis caching and rate limits.**
 
 ## Local setup
 
@@ -77,12 +77,15 @@ Organization, tenant isolation, RBAC, invitations, teams, projects, and tasks ar
 the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
 and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), [Day 11](docs/day-11.md), and
 [Day 12](docs/day-12.md), [Day 13](docs/day-13.md), [Day 14](docs/day-14.md),
-and [Day 15](docs/day-15.md) verification notes.
+and [Day 15](docs/day-15.md) verification notes. [Day 16](docs/day-16.md)
+covers Redis caching and rate limits.
 
 | Command                                 | Purpose                                                             |
 | --------------------------------------- | ------------------------------------------------------------------- |
 | `npm run db:setup`                      | Start PostgreSQL, generate client, apply migrations, seed demo data |
 | `npm run db:up`                         | Start PostgreSQL and wait for its health check                      |
+| `npm run infra:up`                      | Start PostgreSQL and Redis with Docker Compose                      |
+| `npm run infra:stop`                    | Stop PostgreSQL and Redis while preserving their volumes            |
 | `npm run db:stop`                       | Stop PostgreSQL while preserving its named volume                   |
 | `npm run db:logs`                       | Show recent PostgreSQL logs                                         |
 | `npm run db:generate`                   | Regenerate the type-safe database client                            |
@@ -93,6 +96,7 @@ and [Day 15](docs/day-15.md) verification notes.
 | `npm run db:seed`                       | Add missing demo records without resetting existing ones            |
 | `npm run db:check`                      | Verify connectivity and report model counts                         |
 | `npm run test:db`                       | Migrate and test a fresh disposable local database                  |
+| `npm run test:cache`                    | Verify Redis cache miss, hit, TTL, and invalidation                 |
 
 `check` includes schema validation but does not require a running database. Run
 `npm run test:db` after `npm run db:up` to verify actual database behavior.
@@ -124,6 +128,7 @@ src/
     invitations/       Hashed invitation token lifecycle
     teams/             Organization-scoped teams
     notifications/     In-app notification service and delivery abstractions
+    cache/             Redis client, JSON cache helpers, and key policies
     projects/          Organization/team-owned project services
     tasks/             Project-owned task services and filters
 prisma/                Schema, versioned SQL migrations, and local seed
@@ -216,9 +221,9 @@ remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
 
 ## Next milestone
 
-Day 16 adds Redis-backed caching and rate-limit storage. Workers, full
-application containerization, and CI/CD remain on their scheduled days. The
-Compose file runs local PostgreSQL only.
+Day 17 adds queues and workers. Redis-backed project caching and authentication
+rate limits are optional at runtime; requests fall back to PostgreSQL and
+in-process limits while Redis is unavailable.
 
 ### Tooling compatibility
 

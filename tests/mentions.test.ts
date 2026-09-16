@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { extractMentionTokens } from "../src/modules/comments/mentions.ts";
+import { extractMentionTokens } from "../src/modules/comments/mention-parser.ts";
 
 test("extracts unique mention tokens without treating email domains as mentions", () => {
   assert.deepEqual(extractMentionTokens("Hi @Alice and ( @member-name )."), [
