@@ -7,6 +7,10 @@ import {
   writeRequestLog,
   type RequestLogWriter,
 } from "../logging/request-logger.ts";
+import {
+  enforceMutationRateLimit,
+  enforceSameOrigin,
+} from "./request-security.ts";
 
 export type RouteParams = Record<string, string | string[] | undefined>;
 export type ApiContext = { requestId: string; params: Promise<RouteParams> };
@@ -17,7 +21,12 @@ type ApiHandler = (
 ) => ApiResult | Promise<ApiResult>;
 
 export function createApiHandler(
-  options: { route: string; log?: RequestLogWriter },
+  options: {
+    route: string;
+    log?: RequestLogWriter;
+    csrf?: boolean;
+    rateLimit?: boolean;
+  },
   handler: ApiHandler,
 ) {
   return async (
@@ -30,6 +39,9 @@ export function createApiHandler(
     let errorCode;
 
     try {
+      if (options.csrf !== false) enforceSameOrigin(request);
+      if (options.rateLimit !== false)
+        await enforceMutationRateLimit(request, options.route);
       const result = await handler(request, {
         requestId,
         params: routeContext?.params ?? Promise.resolve({}),
