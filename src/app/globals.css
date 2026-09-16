@@ -755,6 +755,16 @@ h3 {
   color: var(--muted);
   font-size: 10px;
 }
+.comment-mention {
+  display: inline;
+  margin-inline: 1px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #e7f1d6;
+  color: #285c49;
+  font-weight: 650;
+  text-decoration: none;
+}
 .comment-edited {
   font-style: italic;
 }

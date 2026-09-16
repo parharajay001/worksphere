@@ -6,6 +6,7 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import {
   AtSign,
@@ -62,6 +63,27 @@ function mentionToken(candidate: MentionCandidate) {
 
 function normalizedName(candidate: MentionCandidate) {
   return candidate.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function renderCommentBody(body: string) {
+  const pattern = /(^|[^A-Za-z0-9_.@-])(@[A-Za-z0-9][A-Za-z0-9_.-]{0,63})/g;
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+  while ((match = pattern.exec(body))) {
+    const mentionStart = match.index + match[1]!.length;
+    parts.push(body.slice(cursor, mentionStart));
+    parts.push(
+      <mark className="comment-mention" key={`mention-${index}`}>
+        {match[2]}
+      </mark>,
+    );
+    cursor = mentionStart + match[2]!.length;
+    index += 1;
+  }
+  parts.push(body.slice(cursor));
+  return parts;
 }
 
 export function TaskComments({
@@ -418,7 +440,7 @@ export function TaskComments({
                     </div>
                   </div>
                 ) : (
-                  <p>{comment.body}</p>
+                  <p>{renderCommentBody(comment.body)}</p>
                 )}
                 {editable && !isEditing && (
                   <div className="comment-actions">
