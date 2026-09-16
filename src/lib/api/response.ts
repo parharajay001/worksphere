@@ -13,6 +13,7 @@ export type ApiFailure = {
 
 export type ApiResult<T = unknown> =
   | { data: T; status: 200 | 201 | 202; headers?: HeadersInit }
+  | { body: BodyInit; status: 200; headers?: HeadersInit }
   | { status: 204; headers?: HeadersInit };
 
 export function success<T>(
@@ -24,6 +25,10 @@ export function success<T>(
 
 export function noContent(headers?: HeadersInit): ApiResult<never> {
   return { status: 204, headers };
+}
+
+export function raw(body: BodyInit, headers?: HeadersInit): ApiResult<never> {
+  return { body, status: 200, headers };
 }
 
 function responseHeaders(requestId: string, initial?: HeadersInit) {
@@ -40,6 +45,8 @@ export function successResponse(
   const headers = responseHeaders(requestId, result.headers);
   if (result.status === 204)
     return new Response(null, { status: 204, headers });
+  if ("body" in result)
+    return new Response(result.body, { status: result.status, headers });
   const body: ApiSuccess<unknown> = { data: result.data, meta: { requestId } };
   return Response.json(body, { status: result.status, headers });
 }

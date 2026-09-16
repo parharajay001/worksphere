@@ -4,6 +4,7 @@ import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
 import { publishRealtimeEvent } from "../../realtime/publisher.ts";
 import { advanceBoard, nextPosition } from "./board.repository.ts";
+import { invalidateAnalytics } from "../analytics/analytics.service.ts";
 import type { z } from "zod";
 import type {
   createTaskSchema,
@@ -118,6 +119,7 @@ export async function createTask(userId: string, input: Create) {
       action: "created",
     },
   });
+  await invalidateAnalytics(project.organizationId);
   return task;
 }
 export async function updateTask(userId: string, id: string, input: Update) {
@@ -163,6 +165,7 @@ export async function updateTask(userId: string, id: string, input: Update) {
     target: { projectId: task.projectId },
     payload: { projectId: task.projectId, taskId: id, action: "updated" },
   });
+  await invalidateAnalytics(project.organizationId);
   return updated;
 }
 export async function deleteTask(userId: string, id: string) {
@@ -171,7 +174,7 @@ export async function deleteTask(userId: string, id: string) {
     select: { projectId: true },
   });
   if (!task) throw new AppError("NOT_FOUND");
-  await projectFor(userId, task.projectId, "projects:manage");
+  const project = await projectFor(userId, task.projectId, "projects:manage");
   await database.$transaction(async (tx) => {
     await advanceBoard(tx, task.projectId);
     const deleted = await tx.task.deleteMany({
@@ -184,4 +187,5 @@ export async function deleteTask(userId: string, id: string) {
     target: { projectId: task.projectId },
     payload: { projectId: task.projectId, taskId: id, action: "deleted" },
   });
+  await invalidateAnalytics(project.organizationId);
 }

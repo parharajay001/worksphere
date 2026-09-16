@@ -4,7 +4,7 @@ import test from "node:test";
 import { z } from "zod";
 import { AppError } from "../src/lib/api/errors.ts";
 import { createApiHandler } from "../src/lib/api/handler.ts";
-import { success, noContent } from "../src/lib/api/response.ts";
+import { success, noContent, raw } from "../src/lib/api/response.ts";
 import { getRequestId } from "../src/lib/api/request-id.ts";
 import {
   parseInput,
@@ -60,6 +60,16 @@ test("success responses correlate body, header, and completion log", async () =>
   assert.equal(logs[0]?.status, 201);
   assert.ok(Number.isFinite(logs[0]?.durationMs));
   assert.ok(!JSON.stringify(logs).includes("never-log"));
+});
+
+test("raw responses preserve request correlation without JSON wrapping", async () => {
+  const response = await createApiHandler({ route: "/api/export" }, async () =>
+    raw("metric,value\r\nprojects,3\r\n", { "Content-Type": "text/csv" }),
+  )(new Request("http://localhost/api/export"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /text\/csv/);
+  assert.ok(response.headers.get("x-request-id"));
+  assert.equal(await response.text(), "metric,value\r\nprojects,3\r\n");
 });
 
 test("typed errors preserve safe status, headers, and codes", async () => {

@@ -430,3 +430,17 @@ model BillingWebhookEvent {
   @@unique([provider, externalEventId])
   @@index([organizationId, receivedAt])
 }
+
+model AuditEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String   @db.VarChar(80)
+  targetType String   @db.VarChar(60)
+  targetId   String?  @db.VarChar(255)
+  metadata   Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, createdAt, id])
+  @@index([actorId, createdAt])
+}

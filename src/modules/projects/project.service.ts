@@ -11,6 +11,7 @@ import {
   setCachedJson,
   type CacheState,
 } from "../../cache/cache.ts";
+import { invalidateAnalytics } from "../analytics/analytics.service.ts";
 import type { z } from "zod";
 import type {
   createProjectSchema,
@@ -81,7 +82,10 @@ export async function listProjectsWithCache(
 }
 
 export function invalidateProjectList(organizationId: string) {
-  return invalidateCache(projectListKey(organizationId));
+  return Promise.all([
+    invalidateCache(projectListKey(organizationId)),
+    invalidateAnalytics(organizationId),
+  ]);
 }
 export async function getProject(userId: string, id: string) {
   const project = await database.project.findUnique({ where: { id }, select });

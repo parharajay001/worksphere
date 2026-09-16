@@ -10,6 +10,8 @@ import { listActivity } from "../../modules/activity/activity.service.ts";
 import { ActivityFeed } from "../../components/activity-feed";
 import { NotificationCenter } from "../../components/notification-center";
 import { listNotifications } from "../../modules/notifications/notification.service.ts";
+import { getAnalytics } from "../../modules/analytics/analytics.service.ts";
+import { AnalyticsDashboard } from "../../components/analytics-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,9 @@ export default async function DashboardPage() {
     limit: 20,
     unreadOnly: false,
   });
+  const analytics = activeOrganization
+    ? (await getAnalytics(user.id, activeOrganization.id)).analytics
+    : null;
   return (
     <div className="overview protected-overview">
       <p className="eyebrow accent">Private workspace</p>
@@ -89,6 +94,12 @@ export default async function DashboardPage() {
           endpoint={`/api/organizations/${activeOrganization.id}/activity`}
           initialPage={activity}
           title="Workspace activity"
+        />
+      )}
+      {activeOrganization && analytics && (
+        <AnalyticsDashboard
+          organizationId={activeOrganization.id}
+          analytics={analytics}
         />
       )}
       <NotificationCenter initialPage={notifications} />
