@@ -4,7 +4,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
-import { deliverInvitationEmail } from "../notifications/email.ts";
+import { enqueueInvitationEmail } from "../../queue/email-queue.ts";
 import type { CreateInvitationInput } from "./invitation.schemas.ts";
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
@@ -33,9 +33,8 @@ export async function createInvitation(
         organization: { select: { name: true } },
       },
     });
-    await deliverInvitationEmail({
-      to: invitation.email,
-      organizationName: invitation.organization.name,
+    await enqueueInvitationEmail({
+      invitationId: invitation.id,
       token,
     });
     return { ...invitation, token };
