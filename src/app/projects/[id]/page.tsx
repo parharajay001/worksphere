@@ -12,6 +12,7 @@ import { ActivityFeed } from "@/components/activity-feed";
 import { ProjectChat } from "@/components/project-chat";
 import { ensureConversation, listMessages } from "@/modules/chat/chat.service";
 export const dynamic = "force-dynamic";
+
 export default async function ProjectPage({
   params,
 }: {
@@ -45,34 +46,56 @@ export default async function ProjectPage({
   const messages = await listMessages(user.id, conversation.id, { limit: 30 });
   return (
     <article className="overview project-board-page">
-      <p className="eyebrow accent">{project.status} project</p>
-      <h1>{project.name}</h1>
-      <p className="intro">
+      <div className="page-breadcrumbs">
+        <a href="/dashboard">Projects</a>
+        <span>/</span>
+        {project.name}
+      </div>
+      <header className="project-page-header">
+        <div className="project-title-row">
+          <span className="project-avatar">
+            {project.name.slice(0, 1).toUpperCase()}
+          </span>
+          <div>
+            <p className="eyebrow accent">{project.status} PROJECT</p>
+            <h1>{project.name}</h1>
+          </div>
+        </div>
+        <span className="status-lozenge">{project.status}</span>
+      </header>
+      <p className="intro project-summary">
         {project.description ?? "A focused space for shared progress."}
       </p>
-      <p className="quiet-label">
-        {project.team ? `Team / ${project.team.name}` : "Organization project"}
-      </p>
-      <a className="primary-link" href="/dashboard">
-        Back to dashboard <span aria-hidden="true">↗</span>
-      </a>
-      <KanbanBoard
-        key={project.id}
-        projectId={project.id}
-        initialBoard={board}
-        canManage={hasPermission(membership.role, "projects:manage")}
-      />
-      <ActivityFeed
-        endpoint={`/api/projects/${project.id}/activity`}
-        initialPage={activity}
-        title="Project activity"
-      />
-      <ProjectChat
-        projectId={project.id}
-        conversationId={conversation.id}
-        currentUserId={user.id}
-        initialPage={messages}
-      />
+      <nav className="project-tabs" aria-label="Project views">
+        <a className="active" href="#board">
+          Board
+        </a>
+        <a href="#activity">Activity</a>
+        <a href="#chat">Chat</a>
+      </nav>
+      <div id="board">
+        <KanbanBoard
+          key={project.id}
+          projectId={project.id}
+          initialBoard={board}
+          canManage={hasPermission(membership.role, "projects:manage")}
+        />
+      </div>
+      <div id="activity">
+        <ActivityFeed
+          endpoint={`/api/projects/${project.id}/activity`}
+          initialPage={activity}
+          title="Project activity"
+        />
+      </div>
+      <div id="chat">
+        <ProjectChat
+          projectId={project.id}
+          conversationId={conversation.id}
+          currentUserId={user.id}
+          initialPage={messages}
+        />
+      </div>
     </article>
   );
 }

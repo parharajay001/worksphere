@@ -8,7 +8,9 @@ import { hasPermission } from "@/modules/authorization/permissions";
 import { AppError } from "@/lib/api/errors";
 import { taskIdSchema } from "@/modules/tasks/task.schemas";
 import { listMentionCandidates } from "@/modules/comments/mentions";
+import { getProject } from "@/modules/projects/project.service";
 export const dynamic = "force-dynamic";
+
 export default async function TaskPage({
   params,
 }: {
@@ -26,6 +28,7 @@ export default async function TaskPage({
     throw error;
   }
   const comments = await listComments(user.id, task.id, { limit: 20 });
+  const project = await getProject(user.id, task.projectId);
   const mentionCandidates = await listMentionCandidates(
     task.project.organizationId,
   );
@@ -35,26 +38,80 @@ export default async function TaskPage({
     "organization:read",
   );
   return (
-    <article className="overview protected-overview">
-      <p className="eyebrow accent">
-        {task.priority} / {task.status}
-      </p>
-      <h1>{task.title}</h1>
-      <p className="intro">{task.description ?? "No description yet."}</p>
-      <p className="quiet-label">
-        {task.assignee ? `Assigned to ${task.assignee.name}` : "Unassigned"}
-      </p>
-      <a className="primary-link" href={`/projects/${task.projectId}`}>
-        Back to project <span aria-hidden="true">↗</span>
-      </a>
-      <TaskComments
-        taskId={task.id}
-        projectId={task.projectId}
-        currentUserId={user.id}
-        canManage={hasPermission(membership.role, "projects:manage")}
-        initialPage={comments}
-        mentionCandidates={mentionCandidates}
-      />
+    <article className="overview protected-overview task-detail-page">
+      <div className="page-breadcrumbs">
+        <a href="/dashboard">Projects</a>
+        <span>/</span>
+        <a href={`/projects/${task.projectId}`}>{project.name}</a>
+        <span>/</span>Issue
+      </div>
+      <div className="task-detail-layout">
+        <div className="task-detail-main">
+          <span className="issue-key">
+            TASK · {task.id.slice(0, 8).toUpperCase()}
+          </span>
+          <h1>{task.title}</h1>
+          <section className="task-description">
+            <h2>Description</h2>
+            <p>{task.description ?? "No description has been added yet."}</p>
+          </section>
+          <TaskComments
+            taskId={task.id}
+            projectId={task.projectId}
+            currentUserId={user.id}
+            canManage={hasPermission(membership.role, "projects:manage")}
+            initialPage={comments}
+            mentionCandidates={mentionCandidates}
+          />
+        </div>
+        <aside className="task-properties">
+          <h2>Details</h2>
+          <dl>
+            <div>
+              <dt>Status</dt>
+              <dd>
+                <span className="status-lozenge">
+                  {task.status.replace("_", " ")}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>Priority</dt>
+              <dd className={`priority-${task.priority.toLowerCase()}`}>
+                {task.priority.toLowerCase()}
+              </dd>
+            </div>
+            <div>
+              <dt>Assignee</dt>
+              <dd>
+                <span className="task-avatar">
+                  {task.assignee?.name.slice(0, 1).toUpperCase() ?? "?"}
+                </span>
+                {task.assignee?.name ?? "Unassigned"}
+              </dd>
+            </div>
+            <div>
+              <dt>Project</dt>
+              <dd>
+                <a href={`/projects/${task.projectId}`}>{project.name}</a>
+              </dd>
+            </div>
+            <div>
+              <dt>Due date</dt>
+              <dd>
+                {task.dueDate
+                  ? task.dueDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    })
+                  : "Not set"}
+              </dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
     </article>
   );
 }

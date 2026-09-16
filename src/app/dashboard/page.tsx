@@ -1,17 +1,16 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "../../modules/auth/session.ts";
-import { SignOutButton } from "../../components/sign-out-button";
-import { getOrganizations } from "../../modules/organizations/organization.service.ts";
-import { getActiveOrganization } from "../../modules/organizations/active-organization.ts";
-import { OrganizationSwitcher } from "../../components/organization-switcher";
-import { hasPermission } from "../../modules/authorization/permissions.ts";
-import { listProjects } from "../../modules/projects/project.service.ts";
-import { listActivity } from "../../modules/activity/activity.service.ts";
-import { ActivityFeed } from "../../components/activity-feed";
-import { NotificationCenter } from "../../components/notification-center";
-import { listNotifications } from "../../modules/notifications/notification.service.ts";
-import { getAnalytics } from "../../modules/analytics/analytics.service.ts";
-import { AnalyticsDashboard } from "../../components/analytics-dashboard";
+import { getSessionUser } from "@/modules/auth/session";
+import { SignOutButton } from "@/components/sign-out-button";
+import { getOrganizations } from "@/modules/organizations/organization.service";
+import { getActiveOrganization } from "@/modules/organizations/active-organization";
+import { OrganizationSwitcher } from "@/components/organization-switcher";
+import { listProjects } from "@/modules/projects/project.service";
+import { listActivity } from "@/modules/activity/activity.service";
+import { ActivityFeed } from "@/components/activity-feed";
+import { NotificationCenter } from "@/components/notification-center";
+import { listNotifications } from "@/modules/notifications/notification.service";
+import { getAnalytics } from "@/modules/analytics/analytics.service";
+import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -37,49 +36,70 @@ export default async function DashboardPage() {
   const analytics = activeOrganization
     ? (await getAnalytics(user.id, activeOrganization.id)).analytics
     : null;
+
   return (
-    <div className="overview protected-overview">
-      <p className="eyebrow accent">Private workspace</p>
-      <h1>
-        Welcome, <em>{user.name}</em>.
-      </h1>
-      <p className="intro">
-        You’re signed in as {user.email}. Organization setup arrives on Day 6.
-      </p>
-      <SignOutButton />
-      <OrganizationSwitcher
-        organizations={memberships.map(({ organization }) => organization)}
-        activeId={activeOrganization?.id}
-      />
-      {activeOrganization &&
-      memberships.some(
-        ({ organization, role }) =>
-          organization.id === activeOrganization.id &&
-          hasPermission(role, "organization:update"),
-      ) ? (
-        <p className="quiet-label">You can manage this organization.</p>
-      ) : null}
-      <section className="project-list" aria-labelledby="projects-title">
+    <div className="overview protected-overview dashboard-page">
+      <div className="page-breadcrumbs">
+        WorkSphere <span>/</span> Your work
+      </div>
+      <header className="dashboard-header">
+        <div>
+          <p className="eyebrow accent">TEAM OVERVIEW</p>
+          <h1>Good morning, {user.name.split(" ")[0]}.</h1>
+          <p className="intro">
+            Here&apos;s what&apos;s moving across your workspace today.
+          </p>
+        </div>
+        <div className="dashboard-header-actions">
+          <OrganizationSwitcher
+            organizations={memberships.map(({ organization }) => organization)}
+            activeId={activeOrganization?.id}
+          />
+          <SignOutButton />
+        </div>
+      </header>
+      {activeOrganization && analytics && (
+        <div id="analytics">
+          <AnalyticsDashboard
+            organizationId={activeOrganization.id}
+            analytics={analytics}
+          />
+        </div>
+      )}
+      <section
+        id="projects"
+        className="project-list"
+        aria-labelledby="projects-title"
+      >
         <div className="section-heading">
-          <h2 id="projects-title">Projects</h2>
-          <span className="outline-label">
-            {projects.length} active space{projects.length === 1 ? "" : "s"}
-          </span>
+          <div>
+            <p className="eyebrow">CURRENT WORK</p>
+            <h2 id="projects-title">Projects</h2>
+          </div>
+          <span className="outline-label">{projects.length} active</span>
         </div>
         {projects.length ? (
           <div className="project-grid">
-            {projects.map((project) => (
+            {projects.map((project, index) => (
               <a
                 className="project-card"
                 key={project.id}
                 href={`/projects/${project.id}`}
               >
-                <span className="eyebrow accent">{project.status}</span>
-                <h3>{project.name}</h3>
-                <p>
-                  {project.description ??
-                    "A focused space for shared progress."}
-                </p>
+                <span
+                  className={`project-card-icon project-color-${index % 4}`}
+                >
+                  {project.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="project-card-copy">
+                  <span className="eyebrow accent">{project.status}</span>
+                  <h3>{project.name}</h3>
+                  <p>
+                    {project.description ??
+                      "A focused space for shared progress."}
+                  </p>
+                </span>
+                <span className="project-card-arrow">→</span>
               </a>
             ))}
           </div>
@@ -89,20 +109,18 @@ export default async function DashboardPage() {
           </p>
         )}
       </section>
-      {activeOrganization && (
-        <ActivityFeed
-          endpoint={`/api/organizations/${activeOrganization.id}/activity`}
-          initialPage={activity}
-          title="Workspace activity"
-        />
-      )}
-      {activeOrganization && analytics && (
-        <AnalyticsDashboard
-          organizationId={activeOrganization.id}
-          analytics={analytics}
-        />
-      )}
-      <NotificationCenter initialPage={notifications} />
+      <div className="dashboard-lower-grid">
+        <div id="activity">
+          {activeOrganization && (
+            <ActivityFeed
+              endpoint={`/api/organizations/${activeOrganization.id}/activity`}
+              initialPage={activity}
+              title="Recent activity"
+            />
+          )}
+        </div>
+        <NotificationCenter initialPage={notifications} />
+      </div>
     </div>
   );
 }

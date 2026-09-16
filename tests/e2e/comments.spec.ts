@@ -57,7 +57,9 @@ test("task detail comments support create, edit, delete, and load more", async (
     ).toBeVisible();
     const newest = page.locator(".comment").first();
     await newest.getByRole("button", { name: /Edit comment by/ }).click();
-    await newest.getByLabel("Edit comment").fill("Updated release update.");
+    await newest
+      .getByLabel("Edit comment", { exact: true })
+      .fill("Updated release update.");
     await newest.getByRole("button", { name: "Save comment" }).click();
     await expect(page.getByText("Updated release update.")).toBeVisible();
     page.once("dialog", (dialog) => void dialog.accept());

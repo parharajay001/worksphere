@@ -1,0 +1,237 @@
+/* Final theme layer, loaded after legacy component styles. */
+.product-main .project-list {
+  max-width: none;
+  margin-top: 34px;
+}
+.product-main .project-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.product-main .project-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 112px;
+  border-color: #dcdfe4;
+  border-radius: 7px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+.product-main .project-card:hover {
+  border-color: #b6c2cf;
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 16px #091e4217,
+    0 0 1px #091e424f;
+}
+.product-main .project-card h3 {
+  margin: 3px 0;
+  color: #172b4d;
+  font-size: 15px;
+}
+.product-main .project-card p {
+  margin: 0;
+  overflow: hidden;
+  color: #626f86;
+  font-size: 11px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.product-main .project-board-page {
+  min-height: 100%;
+  padding-top: 30px;
+  background: transparent;
+}
+.product-main .project-board-page h1 {
+  margin: 6px 0 4px;
+  font-size: 30px;
+  letter-spacing: -1px;
+}
+.product-main .project-board-page > .intro {
+  max-width: 760px;
+  margin: 8px 0 20px 56px;
+}
+.product-main .kanban {
+  margin-top: 18px;
+  border: 0;
+  padding-top: 0;
+}
+.product-main .kanban-columns {
+  gap: 10px;
+  align-items: start;
+}
+.product-main .kanban-column {
+  border: 0;
+  border-radius: 6px;
+  background: #eef0f3;
+}
+.product-main .kanban-column > header {
+  padding: 13px 12px 10px;
+}
+.product-main .kanban-column h3 {
+  color: #44546f;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.product-main .kanban-task {
+  border: 0;
+  border-radius: 5px;
+  padding: 12px;
+  box-shadow: var(--shadow-card);
+}
+.product-main .kanban-task:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 10px #091e421c,
+    0 0 1px #091e424f;
+}
+.product-main .board-icon.add-task,
+.product-main .comment-send {
+  background: #0c66e4;
+}
+.product-main .activity-feed,
+.product-main .chat-panel {
+  max-width: none;
+  margin-top: 38px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+.product-main .dashboard-lower-grid .activity-feed,
+.product-main .dashboard-lower-grid .notification-center {
+  max-width: none;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+.product-main .activity-feed-heading h2,
+.product-main .notification-center-heading h2 {
+  color: #172b4d;
+  font: 650 18px var(--heading-font);
+}
+.product-main .activity-icon,
+.product-main .notification-icon {
+  border-radius: 5px;
+  background: #e9f2ff;
+  color: #0c66e4;
+}
+.product-main .chat-message {
+  background: #f1f2f4;
+}
+.product-main .chat-composer button {
+  color: #0c66e4;
+}
+.product-main .analytics-dashboard {
+  margin-top: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+.product-main .analytics-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.product-main .analytics-grid article {
+  border: 0;
+  border-right: 1px solid #e5e7eb;
+  border-radius: 0;
+  padding: 17px 18px;
+}
+.product-main .analytics-grid article:last-child {
+  border-right: 0;
+}
+.product-main .analytics-grid strong {
+  color: #172b4d;
+  font: 700 26px var(--heading-font);
+}
+.product-main .analytics-statuses {
+  margin-top: 16px;
+  gap: 8px;
+}
+.product-main .analytics-statuses span {
+  padding: 5px 9px;
+  border-radius: 3px;
+  background: #f1f2f4;
+  color: #44546f;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.product-main .task-detail-page {
+  max-width: 1400px;
+}
+.product-main .comments-panel {
+  margin-top: 34px;
+}
+.public-shell .auth-page {
+  min-height: calc(100svh - 68px);
+  grid-template-columns: minmax(340px, 430px) 1fr;
+  max-width: 1180px;
+}
+.public-shell .auth-card {
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 36px #091e4217;
+}
+.public-shell .auth-brand {
+  display: none;
+}
+.public-shell .auth-card h1 {
+  margin: 10px 0;
+  color: #172b4d;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+}
+.public-shell .auth-card input:focus {
+  border-color: #0c66e4;
+  outline-color: #b8d7ff;
+}
+.public-shell .auth-switch a {
+  color: #0c66e4;
+}
+@media (max-width: 1000px) {
+  .product-main .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .product-main .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .product-main .project-board-page > .intro {
+    margin-left: 0;
+  }
+  .product-main .kanban-columns {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .product-main .kanban-column {
+    min-width: min(84vw, 320px);
+    scroll-snap-align: start;
+  }
+  .public-shell .auth-page {
+    min-height: calc(100svh - 68px);
+    grid-template-columns: 1fr;
+    padding: 30px 18px;
+  }
+  .public-shell .auth-card {
+    padding: 25px;
+  }
+}
