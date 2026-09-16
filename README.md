@@ -144,7 +144,8 @@ Project detail pages include a responsive Kanban board with task creation,
 keyboard/pointer movement, persisted ordering, conflict recovery, and a
 cursor-paginated activity feed.
 Task detail pages include member comments with author-only editing, manager
-moderation, pagination, @mentions, and activity events.
+moderation, pagination, @mentions with autocomplete suggestions, and activity
+events.
 
 ## Environment configuration
 

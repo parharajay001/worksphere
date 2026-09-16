@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { Check, LoaderCircle, Pencil, Send, Trash2, X } from "lucide-react";
+import type { MentionCandidate } from "@/modules/comments/mentions";
 
 type Comment = {
   id: string;
@@ -27,16 +34,35 @@ function relativeDate(value: string) {
   });
 }
 
+function mentionRange(value: string, cursor: number) {
+  const beforeCursor = value.slice(0, cursor);
+  const match = beforeCursor.match(
+    /(?:^|[^A-Za-z0-9_.@-])@([A-Za-z0-9][A-Za-z0-9_.-]{0,63})$/,
+  );
+  if (!match) return null;
+  return {
+    start: cursor - match[1]!.length - 1,
+    end: cursor,
+    query: match[1]!.toLowerCase(),
+  };
+}
+
+function mentionToken(candidate: MentionCandidate) {
+  return candidate.email.slice(0, candidate.email.indexOf("@")).toLowerCase();
+}
+
 export function TaskComments({
   taskId,
   currentUserId,
   canManage,
   initialPage,
+  mentionCandidates,
 }: {
   taskId: string;
   currentUserId: string;
   canManage: boolean;
   initialPage: Page;
+  mentionCandidates: MentionCandidate[];
 }) {
   const [comments, setComments] = useState(initialPage.comments);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
@@ -46,7 +72,62 @@ export function TaskComments({
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [mention, setMention] = useState<ReturnType<typeof mentionRange>>(null);
+  const [activeMention, setActiveMention] = useState(0);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const endpoint = `/api/tasks/${taskId}/comments`;
+  const mentionMatches = useMemo(() => {
+    if (!mention) return [];
+    return mentionCandidates
+      .filter((candidate) => {
+        const search = mention.query;
+        return (
+          candidate.name.toLowerCase().includes(search) ||
+          candidate.email.toLowerCase().includes(search) ||
+          mentionToken(candidate).includes(search)
+        );
+      })
+      .slice(0, 6);
+  }, [mention, mentionCandidates]);
+
+  function updateMention(value: string, cursor: number) {
+    const next = mentionRange(value, cursor);
+    setMention(next);
+    setActiveMention(0);
+  }
+
+  function chooseMention(candidate: MentionCandidate) {
+    if (!mention) return;
+    const token = `@${mentionToken(candidate)} `;
+    const nextBody = `${body.slice(0, mention.start)}${token}${body.slice(mention.end)}`;
+    const nextCursor = mention.start + token.length;
+    setBody(nextBody);
+    setMention(null);
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+      composerRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!mention || mentionMatches.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveMention((current) => (current + 1) % mentionMatches.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveMention(
+        (current) =>
+          (current - 1 + mentionMatches.length) % mentionMatches.length,
+      );
+    } else if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      chooseMention(mentionMatches[activeMention]!);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setMention(null);
+    }
+  }
 
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,15 +241,73 @@ export function TaskComments({
           Mention a project member with @name or @email.
         </span>
         <div className="comment-compose-row">
-          <textarea
-            id="new-comment"
-            value={body}
-            maxLength={5000}
-            rows={3}
-            placeholder="Share an update or useful context..."
-            onChange={(event) => setBody(event.target.value)}
-            disabled={pending !== null}
-          />
+          <div className="comment-input-wrap">
+            <textarea
+              ref={composerRef}
+              id="new-comment"
+              value={body}
+              maxLength={5000}
+              rows={3}
+              placeholder="Share an update or useful context..."
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={mention !== null && mentionMatches.length > 0}
+              aria-controls="mention-suggestions"
+              onChange={(event) => {
+                setBody(event.target.value);
+                updateMention(event.target.value, event.target.selectionStart);
+              }}
+              onClick={(event) =>
+                updateMention(
+                  event.currentTarget.value,
+                  event.currentTarget.selectionStart,
+                )
+              }
+              onKeyUp={(event) =>
+                !["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(
+                  event.key,
+                ) &&
+                updateMention(
+                  event.currentTarget.value,
+                  event.currentTarget.selectionStart,
+                )
+              }
+              onKeyDown={handleComposerKeyDown}
+              disabled={pending !== null}
+            />
+            {mention && mentionMatches.length > 0 && (
+              <div
+                className="mention-suggestions"
+                id="mention-suggestions"
+                role="listbox"
+                aria-label="Mention suggestions"
+              >
+                {mentionMatches.map((candidate, index) => (
+                  <button
+                    className={
+                      index === activeMention
+                        ? "mention-option active"
+                        : "mention-option"
+                    }
+                    key={candidate.id}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeMention}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => chooseMention(candidate)}
+                  >
+                    <span className="mention-avatar" aria-hidden="true">
+                      {candidate.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span>
+                      <strong>{candidate.name}</strong>
+                      <small>@{mentionToken(candidate)}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="submit"
             className="comment-send"

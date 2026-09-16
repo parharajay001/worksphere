@@ -7,6 +7,7 @@ import { requirePermission } from "@/modules/authorization/guards";
 import { hasPermission } from "@/modules/authorization/permissions";
 import { AppError } from "@/lib/api/errors";
 import { taskIdSchema } from "@/modules/tasks/task.schemas";
+import { listMentionCandidates } from "@/modules/comments/mentions";
 export const dynamic = "force-dynamic";
 export default async function TaskPage({
   params,
@@ -25,6 +26,9 @@ export default async function TaskPage({
     throw error;
   }
   const comments = await listComments(user.id, task.id, { limit: 20 });
+  const mentionCandidates = await listMentionCandidates(
+    task.project.organizationId,
+  );
   const membership = await requirePermission(
     user.id,
     task.project.organizationId,
@@ -48,6 +52,7 @@ export default async function TaskPage({
         currentUserId={user.id}
         canManage={hasPermission(membership.role, "projects:manage")}
         initialPage={comments}
+        mentionCandidates={mentionCandidates}
       />
     </article>
   );

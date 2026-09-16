@@ -5,6 +5,11 @@ Comments now support organization-member mentions. Tokens such as `@name` and
 against the current organization membership. Unknown or inaccessible members
 are rejected before a comment is written.
 
+The comment composer loads safe mention candidates from the task's organization
+and offers filtered suggestions as soon as a user types `@`. Arrow keys, Enter,
+Tab, Escape, and pointer selection are supported; the inserted token always
+uses the member's email local part so it resolves consistently on the server.
+
 ## Activity feeds
 
 Project and workspace pages show a newest-first activity feed. Feed pages use a
