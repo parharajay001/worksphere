@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   KeyboardSensor,
@@ -26,6 +27,9 @@ import {
   GripVertical,
   Plus,
   RefreshCw,
+  Search,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import {
   reorderTasks,
@@ -38,6 +42,7 @@ import {
 import { useRealtimeRoom } from "@/realtime/use-realtime-room";
 
 type Move = (id: string, status: TaskStatus, index: number) => void;
+type Member = { id: string; name: string; email: string };
 
 function TaskCard({
   task,
@@ -211,17 +216,33 @@ export function KanbanBoard({
   projectId,
   initialBoard,
   canManage,
+  members,
 }: {
   projectId: string;
   initialBoard: Board;
   canManage: boolean;
+  members: Member[];
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [board, setBoard] = useState(initialBoard);
   const [pending, setPending] = useState(false);
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [error, setError] = useState("");
   const [announcement, setAnnouncement] = useState("");
-  const [title, setTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState(
+    searchParams.get("status") ?? "",
+  );
+  const [priorityFilter, setPriorityFilter] = useState(
+    searchParams.get("priority") ?? "",
+  );
+  const [assigneeFilter, setAssigneeFilter] = useState(
+    searchParams.get("assignee") ?? "",
+  );
+  const [dueFilter, setDueFilter] = useState(searchParams.get("due") ?? "");
   const busy = useRef(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -230,6 +251,59 @@ export function KanbanBoard({
     }),
   );
   const endpoint = `/api/projects/${projectId}/board`;
+  const hasFilters = Boolean(
+    query || statusFilter || priorityFilter || assigneeFilter || dueFilter,
+  );
+  const filteredTasks = useMemo(() => {
+    const now = new Date();
+    const week = new Date(now.getTime() + 7 * 86_400_000);
+    return board.tasks.filter((task) => {
+      const due = task.dueDate ? new Date(task.dueDate) : null;
+      return (
+        (!query || task.title.toLowerCase().includes(query.toLowerCase())) &&
+        (!statusFilter || task.status === statusFilter) &&
+        (!priorityFilter || task.priority === priorityFilter) &&
+        (!assigneeFilter ||
+          (assigneeFilter === "unassigned"
+            ? !task.assignee
+            : task.assignee?.id === assigneeFilter)) &&
+        (!dueFilter ||
+          (dueFilter === "overdue" &&
+            due &&
+            due < now &&
+            task.status !== "DONE") ||
+          (dueFilter === "next7" && due && due >= now && due <= week) ||
+          (dueFilter === "none" && !due))
+      );
+    });
+  }, [
+    assigneeFilter,
+    board.tasks,
+    dueFilter,
+    priorityFilter,
+    query,
+    statusFilter,
+  ]);
+
+  function syncFilters(next: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    router.replace(`${pathname}${params.size ? `?${params}` : ""}`, {
+      scroll: false,
+    });
+  }
+
+  function clearFilters() {
+    setQuery("");
+    setStatusFilter("");
+    setPriorityFilter("");
+    setAssigneeFilter("");
+    setDueFilter("");
+    router.replace(pathname, { scroll: false });
+  }
 
   useRealtimeRoom<{ projectId: string }>(
     { kind: "project", id: projectId },
@@ -341,7 +415,12 @@ export function KanbanBoard({
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current || needsRefresh || !title.trim()) return;
+    if (busy.current || needsRefresh) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const title = String(form.get("title") ?? "").trim();
+    if (!title) return;
+    const dueDate = String(form.get("dueDate") ?? "");
     busy.current = true;
     setPending(true);
     setError("");
@@ -349,12 +428,25 @@ export function KanbanBoard({
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, title: title.trim() }),
+        body: JSON.stringify({
+          projectId,
+          title,
+          description: String(form.get("description") ?? ""),
+          status: String(form.get("status") ?? "TODO"),
+          priority: String(form.get("priority") ?? "MEDIUM"),
+          assigneeId: form.get("assigneeId")
+            ? String(form.get("assigneeId"))
+            : null,
+          dueDate: dueDate
+            ? new Date(`${dueDate}T00:00:00.000Z`).toISOString()
+            : null,
+        }),
       });
       if (!response.ok) throw new Error("Task could not be created.");
-      setTitle("");
+      formElement.reset();
+      setCreating(false);
       await reloadBoard();
-      setAnnouncement("Task added to To do.");
+      setAnnouncement("Task created.");
     } catch {
       setError(
         "Could not confirm task creation. Refresh the board before trying again.",
@@ -371,7 +463,7 @@ export function KanbanBoard({
       <div className="board-toolbar">
         <div>
           <h2>
-            Board <span>{board.tasks.length}</span>
+            Board <span>{filteredTasks.length}</span>
           </h2>
           <p>
             {board.tasks.filter((task) => task.status === "DONE").length}{" "}
@@ -380,25 +472,14 @@ export function KanbanBoard({
         </div>
         <div className="board-toolbar-actions">
           {canManage && (
-            <form onSubmit={create} className="board-create">
-              <input
-                aria-label="New task title"
-                placeholder="Task title"
-                value={title}
-                maxLength={200}
-                onChange={(event) => setTitle(event.target.value)}
-                disabled={pending || needsRefresh}
-                required
-              />
-              <button
-                className="board-icon add-task"
-                title="Add task"
-                aria-label="Add task"
-                disabled={pending || needsRefresh || !title.trim()}
-              >
-                <Plus size={18} />
-              </button>
-            </form>
+            <button
+              type="button"
+              className="primary-link board-new-task"
+              onClick={() => setCreating(true)}
+              disabled={pending || needsRefresh}
+            >
+              <Plus size={16} aria-hidden="true" /> New Task
+            </button>
           )}
           <button
             type="button"
@@ -412,6 +493,91 @@ export function KanbanBoard({
           </button>
         </div>
       </div>
+      <div className="board-filters" aria-label="Board filters">
+        <label className="board-search">
+          <Search size={15} aria-hidden="true" />
+          <span className="sr-only">Search tasks</span>
+          <input
+            name="q"
+            value={query}
+            placeholder="Search tasks…"
+            autoComplete="off"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              syncFilters({ q: event.target.value });
+            }}
+          />
+        </label>
+        <SlidersHorizontal size={15} aria-hidden="true" />
+        <select
+          aria-label="Filter by status"
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value);
+            syncFilters({ status: event.target.value });
+          }}
+        >
+          <option value="">All statuses</option>
+          {taskStatuses.map((status) => (
+            <option key={status} value={status}>
+              {statusLabels[status]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by priority"
+          value={priorityFilter}
+          onChange={(event) => {
+            setPriorityFilter(event.target.value);
+            syncFilters({ priority: event.target.value });
+          }}
+        >
+          <option value="">All priorities</option>
+          {["LOW", "MEDIUM", "HIGH", "URGENT"].map((priority) => (
+            <option key={priority} value={priority}>
+              {priority.toLowerCase()}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by assignee"
+          value={assigneeFilter}
+          onChange={(event) => {
+            setAssigneeFilter(event.target.value);
+            syncFilters({ assignee: event.target.value });
+          }}
+        >
+          <option value="">All assignees</option>
+          <option value="unassigned">Unassigned</option>
+          {members.map((member) => (
+            <option key={member.id} value={member.id}>
+              {member.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by due date"
+          value={dueFilter}
+          onChange={(event) => {
+            setDueFilter(event.target.value);
+            syncFilters({ due: event.target.value });
+          }}
+        >
+          <option value="">Any due date</option>
+          <option value="overdue">Overdue</option>
+          <option value="next7">Next 7 days</option>
+          <option value="none">No due date</option>
+        </select>
+        {hasFilters && (
+          <button
+            type="button"
+            className="board-clear-filters"
+            onClick={clearFilters}
+          >
+            <X size={14} aria-hidden="true" /> Clear
+          </button>
+        )}
+      </div>
       <div className="board-feedback">
         <span role="status" aria-live="polite">
           {pending ? "Saving..." : announcement}
@@ -422,6 +588,118 @@ export function KanbanBoard({
         <p className="board-error" role="alert">
           {error}
         </p>
+      )}
+      {hasFilters && filteredTasks.length === 0 && (
+        <div className="board-no-results">
+          <Search size={22} aria-hidden="true" />
+          <strong>No matching tasks</strong>
+          <p>Try another search or clear the active filters.</p>
+          <button type="button" onClick={clearFilters}>
+            Clear Filters
+          </button>
+        </div>
+      )}
+      {creating && (
+        <div
+          className="task-create-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setCreating(false);
+          }}
+        >
+          <section
+            className="task-create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-task-title"
+          >
+            <header>
+              <div>
+                <p className="eyebrow accent">Add to the board</p>
+                <h2 id="new-task-title">Create a task</h2>
+              </div>
+              <button
+                type="button"
+                className="board-icon"
+                aria-label="Close task form"
+                onClick={() => setCreating(false)}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <form onSubmit={create} className="task-create-form">
+              <label>
+                Title
+                <input
+                  name="title"
+                  required
+                  maxLength={200}
+                  placeholder="What needs to get done?"
+                />
+              </label>
+              <label>
+                Description <span>Optional</span>
+                <textarea
+                  name="description"
+                  maxLength={5000}
+                  placeholder="Add useful context or acceptance criteria"
+                />
+              </label>
+              <div className="task-create-grid">
+                <label>
+                  Status
+                  <select name="status" defaultValue="TODO">
+                    {taskStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {statusLabels[status]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Priority
+                  <select name="priority" defaultValue="MEDIUM">
+                    <option value="LOW">low</option>
+                    <option value="MEDIUM">medium</option>
+                    <option value="HIGH">high</option>
+                    <option value="URGENT">urgent</option>
+                  </select>
+                </label>
+                <label>
+                  Assignee
+                  <select name="assigneeId" defaultValue="">
+                    <option value="">Unassigned</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Due date
+                  <input name="dueDate" type="date" />
+                </label>
+              </div>
+              <div className="settings-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setCreating(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-link"
+                  disabled={pending}
+                >
+                  {pending ? "Creating…" : "Create Task"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
       <DndContext
         id={`board-${projectId}`}
@@ -434,10 +712,10 @@ export function KanbanBoard({
             <Column
               key={status}
               status={status}
-              tasks={board.tasks
+              tasks={filteredTasks
                 .filter((task) => task.status === status)
                 .sort((a, b) => a.position - b.position)}
-              editable={canManage}
+              editable={canManage && !hasFilters}
               disabled={pending || needsRefresh}
               move={(...args) => void move(...args)}
             />

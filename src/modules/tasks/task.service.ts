@@ -28,6 +28,7 @@ const select = {
   createdAt: true,
   updatedAt: true,
   assignee: { select: { id: true, name: true, email: true } },
+  reporter: { select: { id: true, name: true, email: true } },
 } as const;
 async function projectFor(
   userId: string,

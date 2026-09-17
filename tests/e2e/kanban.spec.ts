@@ -160,8 +160,11 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
       page.getByLabel("Status for Review launch checklist"),
     ).toBeEnabled();
 
-    await page.getByLabel("New task title").fill("Confirm release readiness");
-    await page.getByRole("button", { name: "Add task", exact: true }).click();
+    await page.getByRole("button", { name: "New Task" }).click();
+    await page
+      .getByLabel("Title", { exact: true })
+      .fill("Confirm release readiness");
+    await page.getByRole("button", { name: "Create Task" }).click();
     await expect(
       column("TODO").getByRole("link", { name: "Confirm release readiness" }),
     ).toBeVisible();
@@ -250,7 +253,9 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
       await expect(
         viewerPage.getByText("Read only", { exact: true }),
       ).toBeVisible();
-      await expect(viewerPage.getByLabel("New task title")).toHaveCount(0);
+      await expect(
+        viewerPage.getByRole("button", { name: "New Task" }),
+      ).toHaveCount(0);
       await expect(
         viewerPage.getByLabel("Status for Review launch checklist"),
       ).toHaveCount(0);

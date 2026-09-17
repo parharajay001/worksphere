@@ -1,14 +1,18 @@
-import { redirect, notFound } from "next/navigation";
-import { getSessionUser } from "@/modules/auth/session";
-import { getTask } from "@/modules/tasks/task.service";
-import { listComments } from "@/modules/comments/comment.service";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { TaskComments } from "@/components/task-comments";
+import { TaskEditor } from "@/components/task-editor";
+import { AppError } from "@/lib/api/errors";
+import { getSessionUser } from "@/modules/auth/session";
 import { requirePermission } from "@/modules/authorization/guards";
 import { hasPermission } from "@/modules/authorization/permissions";
-import { AppError } from "@/lib/api/errors";
-import { taskIdSchema } from "@/modules/tasks/task.schemas";
+import { listComments } from "@/modules/comments/comment.service";
 import { listMentionCandidates } from "@/modules/comments/mentions";
+import { getOrganizationMembers } from "@/modules/organizations/organization.service";
 import { getProject } from "@/modules/projects/project.service";
+import { getTask } from "@/modules/tasks/task.service";
+import { taskIdSchema } from "@/modules/tasks/task.schemas";
+
 export const dynamic = "force-dynamic";
 
 export default async function TaskPage({
@@ -27,90 +31,53 @@ export default async function TaskPage({
     if (error instanceof AppError && error.code === "NOT_FOUND") notFound();
     throw error;
   }
-  const comments = await listComments(user.id, task.id, { limit: 20 });
-  const project = await getProject(user.id, task.projectId);
-  const mentionCandidates = await listMentionCandidates(
-    task.project.organizationId,
-  );
-  const membership = await requirePermission(
-    user.id,
-    task.project.organizationId,
-    "organization:read",
-  );
+  const [comments, project, mentionCandidates, membership] = await Promise.all([
+    listComments(user.id, task.id, { limit: 20 }),
+    getProject(user.id, task.projectId),
+    listMentionCandidates(task.project.organizationId),
+    requirePermission(
+      user.id,
+      task.project.organizationId,
+      "organization:read",
+    ),
+  ]);
+  const canManage = hasPermission(membership.role, "projects:manage");
+  const members = canManage
+    ? (await getOrganizationMembers(user.id, task.project.organizationId)).map(
+        ({ user: member }) => member,
+      )
+    : task.assignee
+      ? [task.assignee]
+      : [];
+
   return (
     <article className="overview protected-overview task-detail-page">
       <div className="page-breadcrumbs">
-        <a href="/dashboard">Projects</a>
+        <Link href="/dashboard">Projects</Link>
         <span>/</span>
-        <a href={`/projects/${task.projectId}`}>{project.name}</a>
-        <span>/</span>Issue
+        <Link href={`/projects/${task.projectId}`}>{project.name}</Link>
+        <span>/</span>Task
       </div>
-      <div className="task-detail-layout">
-        <div className="task-detail-main">
-          <span className="issue-key">
-            TASK · {task.id.slice(0, 8).toUpperCase()}
-          </span>
-          <h1>{task.title}</h1>
-          <section className="task-description">
-            <h2>Description</h2>
-            <p>{task.description ?? "No description has been added yet."}</p>
-          </section>
-          <TaskComments
-            taskId={task.id}
-            projectId={task.projectId}
-            currentUserId={user.id}
-            canManage={hasPermission(membership.role, "projects:manage")}
-            initialPage={comments}
-            mentionCandidates={mentionCandidates}
-          />
-        </div>
-        <aside className="task-properties">
-          <h2>Details</h2>
-          <dl>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <span className="status-lozenge">
-                  {task.status.replace("_", " ")}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Priority</dt>
-              <dd className={`priority-${task.priority.toLowerCase()}`}>
-                {task.priority.toLowerCase()}
-              </dd>
-            </div>
-            <div>
-              <dt>Assignee</dt>
-              <dd>
-                <span className="task-avatar">
-                  {task.assignee?.name.slice(0, 1).toUpperCase() ?? "?"}
-                </span>
-                {task.assignee?.name ?? "Unassigned"}
-              </dd>
-            </div>
-            <div>
-              <dt>Project</dt>
-              <dd>
-                <a href={`/projects/${task.projectId}`}>{project.name}</a>
-              </dd>
-            </div>
-            <div>
-              <dt>Due date</dt>
-              <dd>
-                {task.dueDate
-                  ? task.dueDate.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      timeZone: "UTC",
-                    })
-                  : "Not set"}
-              </dd>
-            </div>
-          </dl>
-        </aside>
+      <TaskEditor
+        initialTask={{
+          ...task,
+          dueDate: task.dueDate?.toISOString() ?? null,
+          createdAt: task.createdAt.toISOString(),
+          updatedAt: task.updatedAt.toISOString(),
+        }}
+        members={members}
+        projectName={project.name}
+        canManage={canManage}
+      />
+      <div className="task-comments-width">
+        <TaskComments
+          taskId={task.id}
+          projectId={task.projectId}
+          currentUserId={user.id}
+          canManage={canManage}
+          initialPage={comments}
+          mentionCandidates={mentionCandidates}
+        />
       </div>
     </article>
   );
