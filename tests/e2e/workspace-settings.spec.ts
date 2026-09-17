@@ -54,10 +54,10 @@ test("members can view workspace settings without management actions", async ({
   const ownerEmail = `settings-owner-${suffix}@example.test`;
   const memberEmail = `settings-member-${suffix}@example.test`;
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   const member = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   try {
     await owner.post("/api/auth/register", {

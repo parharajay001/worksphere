@@ -9,7 +9,7 @@ test("owners can manage teams, invitations, roles, and members", async ({
   const ownerEmail = `directory-owner-${suffix}@example.test`;
   const memberEmail = `directory-member-${suffix}@example.test`;
   const member = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     extraHTTPHeaders: { "x-forwarded-for": "127.0.0.11" },
   });
   try {
@@ -89,7 +89,7 @@ test("invited users can accept a token and viewers get read-only directories", a
   const password = "a secure browser password";
   const viewerEmail = `directory-viewer-${suffix}@example.test`;
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     extraHTTPHeaders: { "x-forwarded-for": "127.0.0.12" },
   });
   try {
@@ -151,14 +151,14 @@ test("team management follows Owner, Admin, Manager, Member, and Viewer permissi
   const suffix = Date.now();
   const password = "a secure browser password";
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     extraHTTPHeaders: { "x-forwarded-for": "127.0.0.20" },
   });
   const roles = ["ADMIN", "MANAGER", "MEMBER", "VIEWER"] as const;
   const contexts = await Promise.all(
     roles.map((_, index) =>
       playwright.request.newContext({
-        baseURL: "http://localhost:3000",
+        baseURL: "http://localhost:3100",
         extraHTTPHeaders: { "x-forwarded-for": `127.0.0.${21 + index}` },
       }),
     ),

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Brand } from "./brand";
 import { WorkspacePicker } from "./workspace-picker";
+import { ProfileMenu } from "./profile-menu";
 
 const navItems = [
   { href: "/dashboard", label: "Your work", icon: LayoutDashboard },
@@ -30,6 +31,9 @@ export function AppChrome({ children }: { children: ReactNode }) {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/verify-email" ||
     pathname === "/invitations/accept";
   if (isPublic)
     return (
@@ -70,9 +74,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
           <button type="button" aria-label="Help">
             <CircleHelp size={18} />
           </button>
-          <span className="topbar-avatar" aria-label="Your profile">
-            WS
-          </span>
+          <ProfileMenu />
         </div>
       </header>
       <div className="product-body">

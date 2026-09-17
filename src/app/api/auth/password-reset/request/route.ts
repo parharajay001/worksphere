@@ -15,9 +15,12 @@ export const POST = createApiHandler(
       "recovery",
       `${request.headers.get("x-forwarded-for") ?? "unknown"}:${input.email}`,
     );
-    await requestPasswordReset(input.email);
+    const token = await requestPasswordReset(input.email);
     return success({
       message: "If an account exists, reset instructions will be sent.",
+      ...(process.env.EMAIL_DELIVERY_PREVIEW === "true" && token
+        ? { previewToken: token }
+        : {}),
     });
   },
 );

@@ -1,5 +1,6 @@
 import "server-only";
 import { Prisma } from "../../generated/prisma/client.ts";
+import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { createUser, findUserByEmail } from "./auth.repository.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
@@ -33,7 +34,37 @@ export async function register(input: RegistrationInput) {
 
 export async function requestPasswordReset(email: string) {
   const user = await findUserByEmail(email);
-  if (user) await issueAuthToken(user.id, "PASSWORD_RESET");
+  return user ? issueAuthToken(user.id, "PASSWORD_RESET") : undefined;
+}
+
+export async function resendEmailVerification(userId: string) {
+  return issueAuthToken(userId, "EMAIL_VERIFICATION");
+}
+
+export async function updateAccount(
+  userId: string,
+  input: { name?: string; currentPassword?: string; newPassword?: string },
+) {
+  const user = await database.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
+  if (!user) throw new AppError("NOT_FOUND");
+  if (
+    input.newPassword &&
+    (!input.currentPassword ||
+      !(await verifyPassword(input.currentPassword, user.passwordHash)))
+  )
+    throw new AppError("UNAUTHENTICATED");
+  const data: { name?: string; passwordHash?: string } = {};
+  if (input.name !== undefined) data.name = input.name;
+  if (input.newPassword)
+    data.passwordHash = await hashPassword(input.newPassword);
+  return database.user.update({
+    where: { id: userId },
+    data,
+    select: { id: true, email: true, name: true, emailVerifiedAt: true },
+  });
 }
 
 export { resetPassword, verifyEmail };

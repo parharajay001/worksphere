@@ -4,10 +4,10 @@ test("organization, invitation, team, project, and task APIs enforce the full wo
   playwright,
 }) => {
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   const member = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   const suffix = Date.now();
   const ownerEmail = `e2e-owner-${suffix}@example.test`;

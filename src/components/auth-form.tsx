@@ -17,14 +17,32 @@ export function AuthForm({ mode }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const form = event.currentTarget;
+    const validation: Record<string, string> = {};
+    for (const element of Array.from(form.elements)) {
+      if (!(element instanceof HTMLInputElement) || element.validity.valid)
+        continue;
+      validation[element.name] = element.validity.valueMissing
+        ? "This field is required."
+        : element.validity.typeMismatch
+          ? "Enter a valid email address."
+          : element.validity.tooShort
+            ? `Use at least ${element.minLength} characters.`
+            : element.validationMessage;
+    }
+    setFieldErrors(validation);
+    const firstField = Object.keys(validation)[0];
+    if (firstField) {
+      (form.elements.namedItem(firstField) as HTMLInputElement | null)?.focus();
+      return;
+    }
     setPending(true);
-    const input = Object.fromEntries(
-      new FormData(event.currentTarget).entries(),
-    );
+    const input = Object.fromEntries(new FormData(form).entries());
     try {
       const response = await fetch(
         `/api/auth/${register ? "register" : "login"}`,
@@ -35,12 +53,24 @@ export function AuthForm({ mode }: Props) {
         },
       );
       const body = (await response.json()) as ApiError;
-      if (!response.ok)
+      if (!response.ok) {
+        const serverFields = Object.fromEntries(
+          (body.error?.details ?? [])
+            .filter((detail) => detail.path)
+            .map((detail) => [detail.path.split(".").at(-1)!, detail.message]),
+        );
+        setFieldErrors(serverFields);
+        const firstServerField = Object.keys(serverFields)[0];
+        if (firstServerField)
+          (
+            form.elements.namedItem(firstServerField) as HTMLInputElement | null
+          )?.focus();
         throw new Error(
           body.error?.details?.[0]?.message ??
             body.error?.message ??
             "Unable to continue.",
         );
+      }
       router.push("/dashboard");
       router.refresh();
     } catch (cause) {
@@ -78,7 +108,11 @@ export function AuthForm({ mode }: Props) {
                 required
                 minLength={1}
                 maxLength={100}
+                aria-invalid={Boolean(fieldErrors.name)}
               />
+              {fieldErrors.name && (
+                <small className="field-error">{fieldErrors.name}</small>
+              )}
             </label>
           )}
           <label>
@@ -89,7 +123,11 @@ export function AuthForm({ mode }: Props) {
               autoComplete="email"
               required
               maxLength={254}
+              aria-invalid={Boolean(fieldErrors.email)}
             />
+            {fieldErrors.email && (
+              <small className="field-error">{fieldErrors.email}</small>
+            )}
           </label>
           <label>
             Password
@@ -100,8 +138,17 @@ export function AuthForm({ mode }: Props) {
               required
               minLength={12}
               maxLength={128}
+              aria-invalid={Boolean(fieldErrors.password)}
             />
+            {fieldErrors.password && (
+              <small className="field-error">{fieldErrors.password}</small>
+            )}
           </label>
+          {!register && (
+            <Link className="forgot-password-link" href="/forgot-password">
+              Forgot password?
+            </Link>
+          )}
           {error && (
             <p className="auth-error" role="alert">
               {error}

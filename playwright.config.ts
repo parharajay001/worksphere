@@ -4,14 +4,18 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 30_000,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
   },
   webServer: {
-    command: "npm.cmd run start",
-    url: "http://localhost:3000/api/health",
-    reuseExistingServer: true,
+    command: "npm.cmd run start -- -p 3100",
+    env: {
+      APP_URL: "http://localhost:3100",
+      EMAIL_DELIVERY_PREVIEW: "true",
+    },
+    url: "http://localhost:3100/api/health",
+    reuseExistingServer: false,
     timeout: 30_000,
   },
   reporter: [["list"]],
