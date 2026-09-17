@@ -2,13 +2,17 @@ import { z } from "zod";
 export const createProjectSchema = z.strictObject({
   organizationId: z.string().uuid(),
   teamId: z.string().uuid().nullable().optional(),
+  ownerId: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000).optional(),
+  status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
 });
 export const updateProjectSchema = z.strictObject({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().trim().max(1000).nullable().optional(),
   status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
+  teamId: z.string().uuid().nullable().optional(),
+  ownerId: z.string().uuid().optional(),
 });
 export const projectIdSchema = z.strictObject({ id: z.string().uuid() });
 export const projectMemberSchema = z.strictObject({
