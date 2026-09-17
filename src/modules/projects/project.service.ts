@@ -36,6 +36,7 @@ const select = {
   createdAt: true,
   updatedAt: true,
   team: { select: { id: true, name: true, slug: true } },
+  owner: { select: { id: true, name: true, email: true } },
 } as const;
 type CreateInput = z.infer<typeof createProjectSchema>;
 type UpdateInput = z.infer<typeof updateProjectSchema>;
@@ -101,6 +102,18 @@ export async function createProject(userId: string, input: CreateInput) {
     });
     if (!team) throw new AppError("NOT_FOUND");
   }
+  const ownerId = input.ownerId ?? userId;
+  if (
+    !(await database.membership.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: input.organizationId,
+          userId: ownerId,
+        },
+      },
+    }))
+  )
+    throw new AppError("NOT_FOUND");
   try {
     const project = await database.$transaction(async (tx) => {
       await assertProjectAllowance(tx, input.organizationId);
@@ -108,10 +121,11 @@ export async function createProject(userId: string, input: CreateInput) {
         data: {
           organizationId: input.organizationId,
           teamId: input.teamId,
-          ownerId: userId,
+          ownerId,
           name: input.name,
           slug: slugify(input.name),
           description: input.description,
+          status: input.status,
         },
         select,
       });
@@ -146,6 +160,24 @@ export async function updateProject(
   });
   if (!project) throw new AppError("NOT_FOUND");
   await requirePermission(userId, project.organizationId, "projects:manage");
+  if (input.teamId) {
+    const team = await database.team.findFirst({
+      where: { id: input.teamId, organizationId: project.organizationId },
+    });
+    if (!team) throw new AppError("NOT_FOUND");
+  }
+  if (
+    input.ownerId &&
+    !(await database.membership.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: project.organizationId,
+          userId: input.ownerId,
+        },
+      },
+    }))
+  )
+    throw new AppError("NOT_FOUND");
   const updated = await database.project.update({
     where: { id },
     data: input,
@@ -207,4 +239,22 @@ export async function addProjectMember(
       throw new AppError("CONFLICT");
     throw error;
   }
+}
+
+export async function listProjectMembers(userId: string, projectId: string) {
+  const project = await database.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true },
+  });
+  if (!project) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, project.organizationId, "organization:read");
+  return database.projectMember.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      userId: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
 }

@@ -11,6 +11,8 @@ import { listActivity } from "@/modules/activity/activity.service";
 import { ActivityFeed } from "@/components/activity-feed";
 import { ProjectChat } from "@/components/project-chat";
 import { ensureConversation, listMessages } from "@/modules/chat/chat.service";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({
@@ -61,7 +63,17 @@ export default async function ProjectPage({
             <h1>{project.name}</h1>
           </div>
         </div>
-        <span className="status-lozenge">{project.status}</span>
+        <div className="project-header-actions">
+          <span className="status-lozenge">{project.status}</span>
+          {hasPermission(membership.role, "projects:manage") && (
+            <Link
+              className="secondary-button"
+              href={`/projects/${project.id}/settings`}
+            >
+              <Settings size={15} aria-hidden="true" /> Project Settings
+            </Link>
+          )}
+        </div>
       </header>
       <p className="intro project-summary">
         {project.description ?? "A focused space for shared progress."}

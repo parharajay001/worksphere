@@ -7,9 +7,21 @@ import {
   projectIdSchema,
   projectMemberSchema,
 } from "@/modules/projects/project.schemas";
-import { addProjectMember } from "@/modules/projects/project.service";
+import {
+  addProjectMember,
+  listProjectMembers,
+} from "@/modules/projects/project.service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const GET = createApiHandler(
+  { route: "/api/projects/:id/members" },
+  async (_request, context) => {
+    const user = await getSessionUser();
+    if (!user) throw new AppError("UNAUTHENTICATED");
+    const { id } = await parseParams(context.params, projectIdSchema);
+    return success({ members: await listProjectMembers(user.id, id) });
+  },
+);
 export const POST = createApiHandler(
   { route: "/api/projects/:id/members" },
   async (request, context) => {

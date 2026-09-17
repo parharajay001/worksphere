@@ -10,6 +10,8 @@ import { NotificationCenter } from "@/components/notification-center";
 import { listNotifications } from "@/modules/notifications/notification.service";
 import { getAnalytics } from "@/modules/analytics/analytics.service";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
+import { requireMembership } from "@/modules/organizations/organization.service";
+import { hasPermission } from "@/modules/authorization/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,12 @@ export default async function DashboardPage() {
   const projects = activeOrganization
     ? await listProjects(user.id, activeOrganization.id)
     : [];
+  const activeMembership = activeOrganization
+    ? await requireMembership(user.id, activeOrganization.id)
+    : null;
+  const canManageProjects = activeMembership
+    ? hasPermission(activeMembership.role, "projects:manage")
+    : false;
   const activity = activeOrganization
     ? await listActivity(
         user.id,
@@ -49,6 +57,11 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="dashboard-header-actions">
+          {canManageProjects && (
+            <Link className="primary-link" href="/projects/new">
+              Create Project
+            </Link>
+          )}
           <SignOutButton />
         </div>
       </header>
@@ -70,7 +83,9 @@ export default async function DashboardPage() {
             <p className="eyebrow">CURRENT WORK</p>
             <h2 id="projects-title">Projects</h2>
           </div>
-          <span className="outline-label">{projects.length} active</span>
+          <span className="outline-label">
+            {projects.filter((project) => project.status === "ACTIVE").length} active
+          </span>
         </div>
         {projects.length ? (
           <div className="project-grid">
@@ -112,16 +127,18 @@ export default async function DashboardPage() {
                   : "A workspace keeps your people, projects, and progress together."}
               </p>
             </div>
-            <Link
-              className="primary-link"
-              href={
-                activeOrganization
-                  ? "/settings/workspace"
-                  : "/settings/workspace?create=1"
-              }
-            >
-              {activeOrganization ? "Workspace Settings" : "Create Workspace"}
-            </Link>
+            {(!activeOrganization || canManageProjects) && (
+              <Link
+                className="primary-link"
+                href={
+                  activeOrganization
+                    ? "/projects/new"
+                    : "/settings/workspace?create=1"
+                }
+              >
+                {activeOrganization ? "Create Project" : "Create Workspace"}
+              </Link>
+            )}
           </div>
         )}
       </section>

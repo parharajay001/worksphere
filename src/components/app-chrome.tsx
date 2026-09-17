@@ -58,9 +58,9 @@ export function AppChrome({ children }: { children: ReactNode }) {
           <kbd>/</kbd>
         </button>
         <div className="topbar-actions">
-          <button type="button" aria-label="Create item">
+          <Link href="/projects/new" aria-label="Create project">
             <Plus size={18} />
-          </button>
+          </Link>
           <button type="button" aria-label="Notifications">
             <Bell size={18} />
           </button>
