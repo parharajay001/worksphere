@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="overview">
@@ -18,9 +20,9 @@ export default function Home() {
             <br className="desktop-break" /> Make room for the work that
             matters.
           </p>
-          <a className="primary-link" href="#workspace">
-            Explore your space <span aria-hidden="true">↗</span>
-          </a>
+          <Link className="primary-link" href="/register">
+            Create your workspace <span aria-hidden="true">↗</span>
+          </Link>
         </div>
         <div className="orbit-art" aria-hidden="true">
           <div className="orbit orbit-one" />
@@ -55,11 +57,12 @@ export default function Home() {
           <p>
             This is where your team&apos;s work will come together.
             <br />
-            Project creation will be available in a future update.
+            Create a workspace, invite your team, and start moving projects
+            forward.
           </p>
-          <span className="quiet-label">
-            You&apos;re here at the beginning.
-          </span>
+          <Link className="quiet-label" href="/register">
+            Start with a free workspace →
+          </Link>
         </div>
       </section>
       <footer className="page-footer">

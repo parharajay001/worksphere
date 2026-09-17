@@ -70,25 +70,34 @@ export async function requireMembership(
 export async function updateOrganization(
   userId: string,
   organizationId: string,
-  name: string,
+  input: { name?: string; slug?: string },
 ) {
   await requirePermission(userId, organizationId, "organization:update");
-  return database.$transaction(async (tx) => {
-    const organization = await tx.organization.update({
-      where: { id: organizationId },
-      data: { name },
-      select: { id: true, name: true, slug: true },
+  try {
+    return await database.$transaction(async (tx) => {
+      const organization = await tx.organization.update({
+        where: { id: organizationId },
+        data: input,
+        select: { id: true, name: true, slug: true },
+      });
+      await appendAuditEvent(tx, {
+        tenantId: organizationId,
+        actorId: userId,
+        action: "organization.updated",
+        targetType: "organization",
+        targetId: organizationId,
+        metadata: { changedFields: Object.keys(input).join(",") },
+      });
+      return organization;
     });
-    await appendAuditEvent(tx, {
-      tenantId: organizationId,
-      actorId: userId,
-      action: "organization.updated",
-      targetType: "organization",
-      targetId: organizationId,
-      metadata: { changedField: "name" },
-    });
-    return organization;
-  });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    )
+      throw new AppError("CONFLICT");
+    throw error;
+  }
 }
 export async function deleteOrganization(
   userId: string,

@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getSessionUser } from "@/modules/auth/session";
 import { SignOutButton } from "@/components/sign-out-button";
-import { getOrganizations } from "@/modules/organizations/organization.service";
 import { getActiveOrganization } from "@/modules/organizations/active-organization";
-import { OrganizationSwitcher } from "@/components/organization-switcher";
 import { listProjects } from "@/modules/projects/project.service";
 import { listActivity } from "@/modules/activity/activity.service";
 import { ActivityFeed } from "@/components/activity-feed";
@@ -17,7 +16,6 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const memberships = await getOrganizations(user.id);
   const activeOrganization = await getActiveOrganization(user.id);
   const projects = activeOrganization
     ? await listProjects(user.id, activeOrganization.id)
@@ -51,10 +49,6 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="dashboard-header-actions">
-          <OrganizationSwitcher
-            organizations={memberships.map(({ organization }) => organization)}
-            activeId={activeOrganization?.id}
-          />
           <SignOutButton />
         </div>
       </header>
@@ -104,9 +98,31 @@ export default async function DashboardPage() {
             ))}
           </div>
         ) : (
-          <p className="empty-workspace">
-            No projects yet. Create one through the projects API.
-          </p>
+          <div className="dashboard-empty-state">
+            <span aria-hidden="true">{activeOrganization ? "01" : "WS"}</span>
+            <div>
+              <h3>
+                {activeOrganization
+                  ? "Your first project starts here."
+                  : "Create your first workspace."}
+              </h3>
+              <p>
+                {activeOrganization
+                  ? "Turn an idea into a shared plan for your team."
+                  : "A workspace keeps your people, projects, and progress together."}
+              </p>
+            </div>
+            <Link
+              className="primary-link"
+              href={
+                activeOrganization
+                  ? "/settings/workspace"
+                  : "/settings/workspace?create=1"
+              }
+            >
+              {activeOrganization ? "Workspace Settings" : "Create Workspace"}
+            </Link>
+          </div>
         )}
       </section>
       <div className="dashboard-lower-grid">
