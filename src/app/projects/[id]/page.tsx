@@ -13,6 +13,7 @@ import { ProjectChat } from "@/components/project-chat";
 import { ensureConversation, listMessages } from "@/modules/chat/chat.service";
 import Link from "next/link";
 import { Settings } from "lucide-react";
+import { getOrganizationMembers } from "@/modules/organizations/organization.service";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({
@@ -46,6 +47,18 @@ export default async function ProjectPage({
     projectId: project.id,
   });
   const messages = await listMessages(user.id, conversation.id, { limit: 30 });
+  const canManage = hasPermission(membership.role, "projects:manage");
+  const members = canManage
+    ? (await getOrganizationMembers(user.id, project.organizationId)).map(
+        ({ user: member }) => member,
+      )
+    : Array.from(
+        new Map(
+          board.tasks
+            .flatMap((task) => (task.assignee ? [task.assignee] : []))
+            .map((member) => [member.id, member]),
+        ).values(),
+      );
   return (
     <article className="overview project-board-page">
       <div className="page-breadcrumbs">
@@ -90,7 +103,8 @@ export default async function ProjectPage({
           key={project.id}
           projectId={project.id}
           initialBoard={board}
-          canManage={hasPermission(membership.role, "projects:manage")}
+          canManage={canManage}
+          members={members}
         />
       </div>
       <div id="activity">
