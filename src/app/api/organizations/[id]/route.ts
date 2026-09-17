@@ -35,10 +35,9 @@ export const PATCH = createApiHandler(
   { route: "/api/organizations/:id" },
   async (request, context) => {
     const { current, id } = await ctx(context.params);
-    const { name } = await parseJson(request, updateOrganizationSchema);
-    if (!name) throw new AppError("VALIDATION_ERROR");
+    const input = await parseJson(request, updateOrganizationSchema);
     return success({
-      organization: await updateOrganization(current.id, id, name),
+      organization: await updateOrganization(current.id, id, input),
     });
   },
 );

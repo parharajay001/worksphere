@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import {
   Bell,
   ChartNoAxesCombined,
-  ChevronsUpDown,
   CircleHelp,
   Clock3,
   FolderKanban,
@@ -16,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { Brand } from "./brand";
+import { WorkspacePicker } from "./workspace-picker";
 
 const navItems = [
   { href: "/dashboard", label: "Your work", icon: LayoutDashboard },
@@ -47,15 +47,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
     <div className="product-shell">
       <header className="product-topbar">
         <Brand />
-        <button
-          className="workspace-picker"
-          type="button"
-          aria-label="Current workspace"
-        >
-          <span className="workspace-monogram">WS</span>
-          <span>WorkSphere</span>
-          <ChevronsUpDown size={14} />
-        </button>
+        <WorkspacePicker />
         <button
           className="global-search"
           type="button"
@@ -106,7 +98,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
             <Link href="/dashboard">
               <Users size={16} /> Teams
             </Link>
-            <Link href="/dashboard">
+            <Link href="/settings/workspace">
               <Settings size={16} /> Settings
             </Link>
           </div>
