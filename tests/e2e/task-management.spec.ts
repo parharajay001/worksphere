@@ -105,7 +105,7 @@ test("read-only members cannot edit or delete task details", async ({
   const suffix = Date.now();
   const password = "a secure browser password";
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   try {
     await register(owner, {

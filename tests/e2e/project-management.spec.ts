@@ -9,7 +9,7 @@ test("project managers can create, edit, staff, archive, and delete a project", 
   const ownerEmail = `project-owner-${suffix}@example.test`;
   const memberEmail = `project-member-${suffix}@example.test`;
   const member = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   try {
     await page.goto("/register");
@@ -95,7 +95,7 @@ test("members cannot open project management settings", async ({
   const suffix = Date.now();
   const password = "a secure browser password";
   const owner = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
   });
   const memberEmail = `restricted-project-${suffix}@example.test`;
   try {
