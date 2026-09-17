@@ -27,7 +27,10 @@ const navItems = [
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPublic =
-    pathname === "/" || pathname === "/login" || pathname === "/register";
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/invitations/accept";
   if (isPublic)
     return (
       <div className="public-shell">
@@ -95,8 +98,17 @@ export function AppChrome({ children }: { children: ReactNode }) {
           </nav>
           <div className="sidebar-section">
             <p>Workspace</p>
-            <Link href="/dashboard">
-              <Users size={16} /> Teams
+            <Link
+              href="/teams"
+              className={pathname === "/teams" ? "active" : undefined}
+            >
+              <Users size={16} aria-hidden="true" /> Teams
+            </Link>
+            <Link
+              href="/people"
+              className={pathname === "/people" ? "active" : undefined}
+            >
+              <Users size={16} aria-hidden="true" /> People
             </Link>
             <Link href="/settings/workspace">
               <Settings size={16} /> Settings

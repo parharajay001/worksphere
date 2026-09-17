@@ -34,8 +34,52 @@ export async function listTeams(userId: string, organizationId: string) {
   return database.team.findMany({
     where: { organizationId },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, slug: true, organizationId: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      organizationId: true,
+      memberships: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          userId: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      _count: { select: { projects: true } },
+    },
   });
+}
+export async function updateTeam(userId: string, teamId: string, name: string) {
+  const team = await database.team.findUnique({
+    where: { id: teamId },
+    select: { organizationId: true },
+  });
+  if (!team) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, team.organizationId, "members:manage");
+  try {
+    return await database.team.update({
+      where: { id: teamId },
+      data: { name, slug: slugify(name) },
+      select: { id: true, name: true, slug: true, organizationId: true },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    )
+      throw new AppError("CONFLICT");
+    throw error;
+  }
+}
+export async function deleteTeam(userId: string, teamId: string) {
+  const team = await database.team.findUnique({
+    where: { id: teamId },
+    select: { organizationId: true },
+  });
+  if (!team) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, team.organizationId, "members:manage");
+  await database.team.delete({ where: { id: teamId } });
 }
 export async function addTeamMember(
   userId: string,
@@ -70,4 +114,20 @@ export async function addTeamMember(
       throw new AppError("CONFLICT");
     throw error;
   }
+}
+export async function removeTeamMember(
+  userId: string,
+  teamId: string,
+  memberId: string,
+) {
+  const team = await database.team.findUnique({
+    where: { id: teamId },
+    select: { organizationId: true },
+  });
+  if (!team) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, team.organizationId, "members:manage");
+  const removed = await database.teamMembership.deleteMany({
+    where: { teamId, userId: memberId },
+  });
+  if (!removed.count) throw new AppError("NOT_FOUND");
 }

@@ -4,6 +4,9 @@ export const createTeamSchema = z.strictObject({
   name: z.string().trim().min(1).max(100),
 });
 export const teamIdSchema = z.strictObject({ id: z.string().uuid() });
+export const updateTeamSchema = z.strictObject({
+  name: z.string().trim().min(1).max(100),
+});
 export const addTeamMemberSchema = z.strictObject({
   userId: z.string().uuid(),
 });

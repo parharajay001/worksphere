@@ -127,6 +127,32 @@ export async function revokeInvitation(userId: string, id: string) {
     return revoked;
   });
 }
+export async function resendInvitation(userId: string, id: string) {
+  const invitation = await database.invitation.findUnique({
+    where: { id },
+    select: { organizationId: true, status: true },
+  });
+  if (!invitation) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, invitation.organizationId, "members:manage");
+  if (invitation.status !== "PENDING") throw new AppError("BAD_REQUEST");
+  const token = randomBytes(32).toString("base64url");
+  const updated = await database.invitation.update({
+    where: { id },
+    data: {
+      tokenHash: hash(token),
+      expiresAt: new Date(Date.now() + 7 * 86400000),
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      status: true,
+      expiresAt: true,
+    },
+  });
+  await enqueueInvitationEmail({ invitationId: id, token });
+  return { ...updated, token };
+}
 export async function listInvitations(userId: string, organizationId: string) {
   await requirePermission(userId, organizationId, "members:read");
   return database.invitation.findMany({
