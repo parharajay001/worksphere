@@ -165,6 +165,30 @@ export function ProjectForm({
     }
   }
 
+  async function removeMember(member: ProjectMember) {
+    if (!project) return;
+    setMemberPending(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/members`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: member.userId }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      setProjectMembers((current) =>
+        current.filter((item) => item.userId !== member.userId),
+      );
+      setSuccess(`${member.user.name} removed from the project.`);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Member could not be removed.",
+      );
+    } finally {
+      setMemberPending(false);
+    }
+  }
+
   async function deleteProject() {
     if (!project || deleteValue !== project.name) return;
     setPending(true);
@@ -330,6 +354,15 @@ export function ProjectForm({
                   <strong>{member.user.name}</strong>
                   <small>{member.user.email}</small>
                 </div>
+                <button
+                  type="button"
+                  className="text-danger-button"
+                  disabled={memberPending}
+                  aria-label={`Remove ${member.user.name} from project`}
+                  onClick={() => void removeMember(member)}
+                >
+                  Remove
+                </button>
               </div>
             ))}
           </div>

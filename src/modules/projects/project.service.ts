@@ -240,6 +240,23 @@ export async function addProjectMember(
     throw error;
   }
 }
+export async function removeProjectMember(
+  userId: string,
+  projectId: string,
+  memberId: string,
+) {
+  const project = await database.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true, ownerId: true },
+  });
+  if (!project) throw new AppError("NOT_FOUND");
+  await requirePermission(userId, project.organizationId, "projects:manage");
+  if (project.ownerId === memberId) throw new AppError("FORBIDDEN");
+  const removed = await database.projectMember.deleteMany({
+    where: { projectId, userId: memberId },
+  });
+  if (!removed.count) throw new AppError("NOT_FOUND");
+}
 
 export async function listProjectMembers(userId: string, projectId: string) {
   const project = await database.project.findUnique({

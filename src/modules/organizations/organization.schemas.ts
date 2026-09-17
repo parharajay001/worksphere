@@ -1,4 +1,10 @@
 import { z } from "zod";
+export const membershipRoleSchema = z.enum([
+  "ADMIN",
+  "MANAGER",
+  "MEMBER",
+  "VIEWER",
+]);
 
 export const organizationIdSchema = z.strictObject({ id: z.string().uuid() });
 export const createOrganizationSchema = z.strictObject({

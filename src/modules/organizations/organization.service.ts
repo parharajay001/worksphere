@@ -28,6 +28,50 @@ export async function getOrganizationMembers(
   await requirePermission(userId, organizationId, "members:read");
   return listMembers(organizationId);
 }
+export async function updateMemberRole(
+  actorId: string,
+  organizationId: string,
+  memberId: string,
+  role: "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER",
+) {
+  const actor = await requirePermission(
+    actorId,
+    organizationId,
+    "members:manage",
+  );
+  const target = await database.membership.findUnique({
+    where: { organizationId_userId: { organizationId, userId: memberId } },
+    select: { role: true },
+  });
+  if (!target) throw new AppError("NOT_FOUND");
+  if (target.role === "OWNER") throw new AppError("FORBIDDEN");
+  if (actor.role !== "OWNER" && role === "ADMIN")
+    throw new AppError("FORBIDDEN");
+  return database.membership.update({
+    where: { organizationId_userId: { organizationId, userId: memberId } },
+    data: { role },
+    select: {
+      role: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+}
+export async function removeOrganizationMember(
+  actorId: string,
+  organizationId: string,
+  memberId: string,
+) {
+  await requirePermission(actorId, organizationId, "members:manage");
+  const target = await database.membership.findUnique({
+    where: { organizationId_userId: { organizationId, userId: memberId } },
+    select: { role: true },
+  });
+  if (!target) throw new AppError("NOT_FOUND");
+  if (target.role === "OWNER") throw new AppError("FORBIDDEN");
+  await database.membership.delete({
+    where: { organizationId_userId: { organizationId, userId: memberId } },
+  });
+}
 export async function createOrganization(
   userId: string,
   input: CreateOrganizationInput,
