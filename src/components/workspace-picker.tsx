@@ -80,6 +80,7 @@ export function WorkspacePicker() {
       }
       setActiveId(id);
       setOpen(false);
+      window.dispatchEvent(new Event("worksphere:active-organization-changed"));
       router.push("/dashboard");
       router.refresh();
     } catch (cause) {

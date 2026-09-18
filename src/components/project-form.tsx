@@ -26,11 +26,17 @@ type Project = {
 };
 type ProjectMember = { userId: string; user: Person };
 type ApiError = {
-  error?: { message?: string; details?: Array<{ message: string }> };
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Array<{ message: string }>;
+  };
 };
 
 async function responseError(response: Response) {
   const body = (await response.json().catch(() => ({}))) as ApiError;
+  if (body.error?.code === "PLAN_LIMIT_REACHED")
+    return "This workspace has reached its active-project limit. Upgrade the plan or archive a project before creating another.";
   if (response.status === 409)
     return "A project with this name already exists. Choose another name.";
   if (response.status === 403)

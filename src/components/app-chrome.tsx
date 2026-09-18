@@ -17,6 +17,7 @@ import { Brand } from "./brand";
 import { WorkspacePicker } from "./workspace-picker";
 import { ProfileMenu } from "./profile-menu";
 import { GlobalSearch } from "./global-search";
+import { SidebarPlan } from "./sidebar-plan";
 
 const navItems = [
   { href: "/dashboard", label: "Your work", icon: LayoutDashboard },
@@ -118,11 +119,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
               <Settings size={16} aria-hidden="true" /> Settings
             </Link>
           </div>
-          <div className="sidebar-upgrade">
-            <span>FREE PLAN</span>
-            <strong>Build momentum</strong>
-            <p>Upgrade when your team needs more room.</p>
-          </div>
+          <SidebarPlan />
         </aside>
         <main id="main" tabIndex={-1} className="product-main">
           {children}

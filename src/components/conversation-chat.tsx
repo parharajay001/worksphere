@@ -202,12 +202,23 @@ export function ConversationChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: body.trim() }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(
+          result?.error?.code === "PLAN_LIMIT_REACHED"
+            ? "This workspace has used its monthly chat allowance. Upgrade the plan to keep the conversation moving."
+            : "Message could not be sent. Your draft is safe—try again.",
+        );
+      }
       const result = (await response.json()) as { data: { message: Message } };
       setMessages((current) => [result.data.message, ...current]);
       announceTyping("");
-    } catch {
-      setError("Message could not be sent. Your draft is safe—try again.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Message could not be sent. Your draft is safe—try again.",
+      );
     } finally {
       setPending("");
     }

@@ -220,6 +220,49 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       }),
       1,
     );
+
+    const canceledEvent = {
+      ...event,
+      id: "billing-event-2",
+      type: "subscription.canceled" as const,
+      data: {
+        ...event.data,
+        status: "CANCELED" as const,
+        cancelAtPeriodEnd: false,
+      },
+    };
+    const canceledRaw = new TextEncoder().encode(JSON.stringify(canceledEvent));
+    assert.deepEqual(
+      await webhooks.processBillingWebhook("test", canceledEvent, canceledRaw),
+      { duplicate: false },
+    );
+    assert.equal(await billing.effectivePlan(db, organizationId), "FREE");
+
+    const checkout = await billing.startCheckout(
+      owner,
+      organizationId,
+      "TEAM",
+      "http://localhost:3000/settings/billing",
+    );
+    assert.match(checkout.checkoutUrl, /billing=updated/);
+    assert.equal(await billing.effectivePlan(db, organizationId), "TEAM");
+    await billing.changePlan(owner, organizationId, "PRO");
+    assert.equal(await billing.effectivePlan(db, organizationId), "PRO");
+    const portal = await billing.openCustomerPortal(
+      owner,
+      organizationId,
+      "http://localhost:3000/settings/billing",
+    );
+    assert.match(portal.portalUrl, /billing=updated/);
+    await billing.cancelPlan(owner, organizationId);
+    assert.equal(
+      (
+        await db.billingSubscription.findUniqueOrThrow({
+          where: { organizationId },
+        })
+      ).cancelAtPeriodEnd,
+      true,
+    );
   });
 
   test("serves tenant KPIs and keeps sensitive audit rows immutable", async () => {
