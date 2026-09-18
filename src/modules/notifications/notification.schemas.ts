@@ -10,3 +10,12 @@ export const notificationQuerySchema = z.strictObject({
 });
 
 export const notificationIdSchema = z.strictObject({ id: z.string().uuid() });
+
+export const notificationPreferencesSchema = z.strictObject({
+  mentionInApp: z.boolean(),
+  mentionEmail: z.boolean(),
+  invitationInApp: z.boolean(),
+  assignmentInApp: z.boolean(),
+  statusChangeInApp: z.boolean(),
+  reminderInApp: z.boolean(),
+});

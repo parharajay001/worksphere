@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getSessionUser } from "@/modules/auth/session";
 import { listNotifications } from "@/modules/notifications/notification.service";
 import { NotificationCenter } from "@/components/notification-center";
+import { NotificationPreferences } from "@/components/notification-preferences";
+import { getNotificationPreferences } from "@/modules/notifications/preferences";
 export const dynamic = "force-dynamic";
 export default async function NotificationsPage() {
   const user = await getSessionUser();
@@ -11,6 +13,7 @@ export default async function NotificationsPage() {
     limit: 20,
     unreadOnly: false,
   });
+  const preferences = await getNotificationPreferences(user.id);
   return (
     <div className="overview protected-overview notifications-page">
       <div className="page-breadcrumbs">
@@ -27,6 +30,7 @@ export default async function NotificationsPage() {
         </div>
       </header>
       <NotificationCenter initialPage={notifications} />
+      <NotificationPreferences initialPreferences={preferences} />
     </div>
   );
 }

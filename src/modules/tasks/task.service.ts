@@ -11,6 +11,7 @@ import type {
   taskFilterSchema,
   updateTaskSchema,
 } from "./task.schemas.ts";
+import { createAppNotification } from "../notifications/notification.service.ts";
 type Create = z.infer<typeof createTaskSchema>;
 type Update = z.infer<typeof updateTaskSchema>;
 type Filter = z.infer<typeof taskFilterSchema>;
@@ -109,6 +110,43 @@ export async function createTask(userId: string, input: Create) {
         metadata: { taskId: created.id },
       },
     });
+    if (created.assigneeId && created.assigneeId !== userId) {
+      await tx.activityEvent.create({
+        data: {
+          projectId: input.projectId,
+          actorId: userId,
+          action: "task.assigned",
+          metadata: { taskId: created.id, assigneeId: created.assigneeId },
+        },
+      });
+      await createAppNotification(tx, {
+        kind: "ASSIGNMENT",
+        recipientId: created.assigneeId,
+        actorId: userId,
+        organizationId: project.organizationId,
+        projectId: input.projectId,
+        taskId: created.id,
+        metadata: { taskId: created.id },
+      });
+    }
+    if (
+      created.dueDate &&
+      created.assigneeId &&
+      created.assigneeId !== userId
+    ) {
+      await createAppNotification(tx, {
+        kind: "REMINDER",
+        recipientId: created.assigneeId,
+        actorId: userId,
+        organizationId: project.organizationId,
+        projectId: input.projectId,
+        taskId: created.id,
+        metadata: {
+          taskId: created.id,
+          dueDate: created.dueDate.toISOString(),
+        },
+      });
+    }
     return created;
   });
   await publishRealtimeEvent({
@@ -135,7 +173,7 @@ export async function updateTask(userId: string, id: string, input: Update) {
     await advanceBoard(tx, task.projectId);
     const current = await tx.task.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, assigneeId: true, dueDate: true },
     });
     if (!current) throw new AppError("NOT_FOUND");
     const result = await tx.task.update({
@@ -159,6 +197,69 @@ export async function updateTask(userId: string, id: string, input: Update) {
         metadata: { taskId: id },
       },
     });
+    if (result.assigneeId && result.assigneeId !== current.assigneeId) {
+      await tx.activityEvent.create({
+        data: {
+          projectId: task.projectId,
+          actorId: userId,
+          action: "task.assigned",
+          metadata: { taskId: id, assigneeId: result.assigneeId },
+        },
+      });
+      if (result.assigneeId !== userId)
+        await createAppNotification(tx, {
+          kind: "ASSIGNMENT",
+          recipientId: result.assigneeId,
+          actorId: userId,
+          organizationId: project.organizationId,
+          projectId: task.projectId,
+          taskId: id,
+          metadata: { taskId: id },
+        });
+    }
+    if (result.status !== current.status) {
+      await tx.activityEvent.create({
+        data: {
+          projectId: task.projectId,
+          actorId: userId,
+          action: "task.status_changed",
+          metadata: {
+            taskId: id,
+            fromStatus: current.status,
+            toStatus: result.status,
+          },
+        },
+      });
+      if (result.assigneeId && result.assigneeId !== userId)
+        await createAppNotification(tx, {
+          kind: "STATUS_CHANGE",
+          recipientId: result.assigneeId,
+          actorId: userId,
+          organizationId: project.organizationId,
+          projectId: task.projectId,
+          taskId: id,
+          metadata: {
+            taskId: id,
+            fromStatus: current.status,
+            toStatus: result.status,
+          },
+        });
+    }
+    if (
+      result.dueDate &&
+      result.dueDate.getTime() !== current.dueDate?.getTime() &&
+      result.assigneeId &&
+      result.assigneeId !== userId
+    )
+      await createAppNotification(tx, {
+        kind: "REMINDER",
+        recipientId: result.assigneeId,
+        actorId: userId,
+        organizationId: project.organizationId,
+        projectId: task.projectId,
+        taskId: id,
+        metadata: { taskId: id, dueDate: result.dueDate.toISOString() },
+      });
     return result;
   });
   await publishRealtimeEvent({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   AtSign,
@@ -10,6 +11,8 @@ import {
   Pencil,
   Plus,
   Trash2,
+  UserPlus,
+  UserCheck,
 } from "lucide-react";
 
 export type ActivityItem = {
@@ -32,6 +35,9 @@ const actionCopy: Record<string, { label: string; icon: typeof Activity }> = {
   "mention.created": { label: "mentioned a teammate", icon: AtSign },
   "project.created": { label: "created a project", icon: FolderKanban },
   "project.updated": { label: "updated a project", icon: Pencil },
+  "member.invited": { label: "invited a member", icon: UserPlus },
+  "task.assigned": { label: "assigned a task", icon: UserCheck },
+  "task.status_changed": { label: "changed task status", icon: CheckCircle2 },
 };
 
 function relativeDate(value: string) {
@@ -107,8 +113,15 @@ export function ActivityFeed({
         {activities.map((item) => {
           const copy = copyFor(item.action);
           const Icon = copy.icon;
+          const taskId = item.metadata.taskId;
+          const href =
+            item.action === "member.invited"
+              ? "/people"
+              : typeof taskId === "string"
+                ? `/tasks/${taskId}`
+                : `/projects/${item.project.id}`;
           return (
-            <article className="activity-item" key={item.id}>
+            <Link className="activity-item" href={href} key={item.id}>
               <span className="activity-icon" aria-hidden="true">
                 <Icon size={16} />
               </span>
@@ -121,7 +134,7 @@ export function ActivityFeed({
                   {relativeDate(item.createdAt)}
                 </time>
               </div>
-            </article>
+            </Link>
           );
         })}
         {activities.length === 0 && (

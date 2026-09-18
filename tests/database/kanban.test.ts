@@ -291,6 +291,61 @@ describe(
       );
     });
 
+    test("assignments, reminders, and status changes create preference-aware notifications", async () => {
+      const dueDate = new Date(Date.now() + 86_400_000).toISOString();
+      const task = await tasks.createTask(owner, {
+        projectId: project,
+        title: "Notify assignee",
+        assigneeId: viewer,
+        dueDate,
+      });
+      await tasks.updateTask(owner, task.id, { status: "IN_PROGRESS" });
+
+      assert.deepEqual(
+        (
+          await db.notification.findMany({
+            where: { recipientId: viewer, taskId: task.id },
+            orderBy: { createdAt: "asc" },
+            select: { kind: true },
+          })
+        ).map((notification) => notification.kind),
+        ["ASSIGNMENT", "REMINDER", "STATUS_CHANGE"],
+      );
+      assert.equal(
+        (
+          await db.activityEvent.findMany({
+            where: {
+              projectId: project,
+              action: { in: ["task.assigned", "task.status_changed"] },
+            },
+            select: { metadata: true },
+          })
+        ).filter(
+          (event) =>
+            event.metadata &&
+            typeof event.metadata === "object" &&
+            !Array.isArray(event.metadata) &&
+            event.metadata.taskId === task.id,
+        ).length,
+        2,
+      );
+
+      await db.notificationPreference.create({
+        data: { userId: viewer, assignmentInApp: false },
+      });
+      const muted = await tasks.createTask(owner, {
+        projectId: project,
+        title: "Muted assignment",
+        assigneeId: viewer,
+      });
+      assert.equal(
+        await db.notification.count({
+          where: { recipientId: viewer, taskId: muted.id, kind: "ASSIGNMENT" },
+        }),
+        0,
+      );
+    });
+
     test("activity failure rolls back the move and board revision together", async () => {
       const initial = await board.getBoard(owner, project);
       await db.$executeRawUnsafe(
