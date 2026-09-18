@@ -84,13 +84,14 @@ export default async function DashboardPage() {
             <h2 id="projects-title">Projects</h2>
           </div>
           <span className="outline-label">
-            {projects.filter((project) => project.status === "ACTIVE").length} active
+            {projects.filter((project) => project.status === "ACTIVE").length}{" "}
+            active
           </span>
         </div>
         {projects.length ? (
           <div className="project-grid">
             {projects.map((project, index) => (
-              <a
+              <Link
                 className="project-card"
                 key={project.id}
                 href={`/projects/${project.id}`}
@@ -109,7 +110,7 @@ export default async function DashboardPage() {
                   </p>
                 </span>
                 <span className="project-card-arrow">→</span>
-              </a>
+              </Link>
             ))}
           </div>
         ) : (
