@@ -13,6 +13,9 @@ const metadataKeys: Record<string, readonly string[]> = {
   "task.created": ["taskId"],
   "task.updated": ["taskId"],
   "task.moved": ["taskId", "fromStatus", "toStatus", "position"],
+  "task.assigned": ["taskId", "assigneeId"],
+  "task.status_changed": ["taskId", "fromStatus", "toStatus"],
+  "member.invited": ["invitationId", "email"],
   "comment.created": ["taskId", "commentId"],
   "comment.updated": ["taskId", "commentId"],
   "comment.deleted": ["taskId", "commentId"],
@@ -73,12 +76,14 @@ export async function listActivity(userId: string, scope: Scope, query: Query) {
         id: true,
         createdAt: true,
         projectId: true,
+        organizationId: true,
         project: { select: { organizationId: true } },
       },
     });
     if (
       !cursor ||
-      cursor.project.organizationId !== organizationId ||
+      (cursor.organizationId ?? cursor.project?.organizationId) !==
+        organizationId ||
       (scope.projectId && cursor.projectId !== scope.projectId)
     )
       throw new AppError("BAD_REQUEST");
@@ -88,7 +93,9 @@ export async function listActivity(userId: string, scope: Scope, query: Query) {
     where: {
       ...(scope.projectId
         ? { projectId: scope.projectId }
-        : { project: { organizationId } }),
+        : {
+            OR: [{ organizationId }, { project: { organizationId } }],
+          }),
       ...(after
         ? {
             OR: [
@@ -107,6 +114,7 @@ export async function listActivity(userId: string, scope: Scope, query: Query) {
       createdAt: true,
       actor: { select: { id: true, name: true } },
       project: { select: { id: true, name: true } },
+      organization: { select: { id: true, name: true } },
     },
   });
   const hasMore = events.length > query.limit;
@@ -118,7 +126,7 @@ export async function listActivity(userId: string, scope: Scope, query: Query) {
       metadata: safeMetadata(event.action, event.metadata),
       createdAt: event.createdAt.toISOString(),
       actor: event.actor,
-      project: event.project,
+      project: event.project ?? event.organization!,
     })),
     nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
   };

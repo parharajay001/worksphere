@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { AtSign, Bell, CheckCheck, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  AtSign,
+  Bell,
+  CheckCheck,
+  Clock3,
+  LoaderCircle,
+  MailCheck,
+  Route,
+  UserCheck,
+} from "lucide-react";
 import { useRealtimeUserEvent } from "@/realtime/use-realtime-room";
 
 type Notification = {
@@ -33,17 +43,30 @@ function relativeDate(value: string) {
 }
 
 export function NotificationCenter({ initialPage }: { initialPage: Page }) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState(initialPage.notifications);
   const [unreadCount, setUnreadCount] = useState(initialPage.unreadCount);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
-  async function reloadNotifications() {
+  const kindCopy = {
+    mention: { verb: "mentioned you in", icon: AtSign },
+    invitation: { verb: "welcomed you to", icon: MailCheck },
+    assignment: { verb: "assigned you a task in", icon: UserCheck },
+    status_change: { verb: "changed a task status in", icon: Route },
+    reminder: { verb: "set a due-date reminder in", icon: Clock3 },
+  } as const;
+
+  async function reloadNotifications(filter = unreadOnly) {
     try {
-      const response = await fetch("/api/notifications?limit=20", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/notifications?limit=20&unreadOnly=${filter}`,
+        {
+          cache: "no-store",
+        },
+      );
       if (!response.ok) return;
       const result = (await response.json()) as { data: Page };
       setNotifications(result.data.notifications);
@@ -58,8 +81,9 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
     void reloadNotifications();
   });
 
-  async function markRead(id: string) {
+  async function openNotification(item: Notification) {
     if (pending) return;
+    const id = item.id;
     const wasUnread = notifications.some(
       (notification) => notification.id === id && !notification.readAt,
     );
@@ -78,6 +102,19 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
         ),
       );
       if (wasUnread) setUnreadCount((current) => Math.max(0, current - 1));
+      if (unreadOnly)
+        setNotifications((current) =>
+          current.filter((entry) => entry.id !== id),
+        );
+      router.push(
+        item.task
+          ? `/tasks/${item.task.id}${item.commentId ? `#comment-${item.commentId}` : ""}`
+          : item.kind === "invitation"
+            ? "/people"
+            : item.project
+              ? `/projects/${item.project.id}`
+              : "/dashboard",
+      );
     } catch {
       setError("Notification could not be marked as read.");
     } finally {
@@ -98,6 +135,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
       setNotifications((current) =>
         current.map((item) => ({ ...item, readAt: item.readAt ?? now })),
       );
+      if (unreadOnly) setNotifications([]);
       setUnreadCount(0);
     } catch {
       setError("Notifications could not be marked as read.");
@@ -112,7 +150,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
     setError("");
     try {
       const response = await fetch(
-        `/api/notifications?limit=20&cursor=${encodeURIComponent(nextCursor)}`,
+        `/api/notifications?limit=20&unreadOnly=${unreadOnly}&cursor=${encodeURIComponent(nextCursor)}`,
         { cache: "no-store" },
       );
       if (!response.ok) throw new Error();
@@ -161,36 +199,64 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
         </p>
       )}
       <div className="notification-list">
-        {notifications.map((item) => (
+        <div className="notification-filters" aria-label="Notification filter">
           <button
-            className={
-              item.readAt
-                ? "notification-item"
-                : "notification-item notification-unread"
-            }
-            key={item.id}
             type="button"
-            onClick={() => void markRead(item.id)}
-            disabled={pending !== null}
+            className={!unreadOnly ? "active" : ""}
+            onClick={() => {
+              setUnreadOnly(false);
+              void reloadNotifications(false);
+            }}
           >
-            <span className="notification-icon" aria-hidden="true">
-              <AtSign size={15} />
-            </span>
-            <span className="notification-copy">
-              <span>
-                <strong>{item.actor?.name ?? "A teammate"}</strong> mentioned
-                you in <strong>{item.project?.name ?? "a project"}</strong>
-              </span>
-              {item.task && <small>{item.task.title}</small>}
-              <time dateTime={item.createdAt}>
-                {relativeDate(item.createdAt)}
-              </time>
-            </span>
-            {!item.readAt && (
-              <span className="notification-dot" aria-label="Unread" />
-            )}
+            All
           </button>
-        ))}
+          <button
+            type="button"
+            className={unreadOnly ? "active" : ""}
+            onClick={() => {
+              setUnreadOnly(true);
+              void reloadNotifications(true);
+            }}
+          >
+            Unread
+          </button>
+        </div>
+        {notifications.map((item) => {
+          const presentation =
+            kindCopy[item.kind as keyof typeof kindCopy] ?? kindCopy.mention;
+          const Icon = presentation.icon;
+          return (
+            <button
+              className={
+                item.readAt
+                  ? "notification-item"
+                  : "notification-item notification-unread"
+              }
+              key={item.id}
+              type="button"
+              onClick={() => void openNotification(item)}
+              disabled={pending !== null}
+            >
+              <span className="notification-icon" aria-hidden="true">
+                <Icon size={15} />
+              </span>
+              <span className="notification-copy">
+                <span>
+                  <strong>{item.actor?.name ?? "WorkSphere"}</strong>{" "}
+                  {presentation.verb}{" "}
+                  <strong>{item.project?.name ?? "your workspace"}</strong>
+                </span>
+                {item.task && <small>{item.task.title}</small>}
+                <time dateTime={item.createdAt}>
+                  {relativeDate(item.createdAt)}
+                </time>
+              </span>
+              {!item.readAt && (
+                <span className="notification-dot" aria-label="Unread" />
+              )}
+            </button>
+          );
+        })}
         {notifications.length === 0 && (
           <p className="notification-empty">You are all caught up.</p>
         )}

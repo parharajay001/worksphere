@@ -8,6 +8,7 @@ import { advanceBoard } from "./board.repository.ts";
 import { reorderTasks, type Board } from "./board.ts";
 import { publishRealtimeEvent } from "../../realtime/publisher.ts";
 import type { moveTaskSchema } from "./board.schemas.ts";
+import { createAppNotification } from "../notifications/notification.service.ts";
 
 async function authorize(userId: string, projectId: string, write: boolean) {
   const project = await database.project.findUnique({
@@ -20,6 +21,7 @@ async function authorize(userId: string, projectId: string, write: boolean) {
     project.organizationId,
     write ? "projects:manage" : "organization:read",
   );
+  return project.organizationId;
 }
 
 async function snapshot(
@@ -65,12 +67,12 @@ export async function moveTask(
   projectId: string,
   input: z.infer<typeof moveTaskSchema>,
 ) {
-  await authorize(userId, projectId, true);
+  const organizationId = await authorize(userId, projectId, true);
   const board = await database.$transaction(async (tx) => {
     await advanceBoard(tx, projectId, input.revision);
     const tasks = await tx.task.findMany({
       where: { projectId },
-      select: { id: true, status: true, position: true },
+      select: { id: true, status: true, position: true, assigneeId: true },
     });
     const task = tasks.find((item) => item.id === input.taskId);
     if (!task) throw new AppError("NOT_FOUND");
@@ -107,6 +109,34 @@ export async function moveTask(
         },
       },
     });
+    if (task.status !== input.status) {
+      await tx.activityEvent.create({
+        data: {
+          projectId,
+          actorId: userId,
+          action: "task.status_changed",
+          metadata: {
+            taskId: task.id,
+            fromStatus: task.status,
+            toStatus: input.status,
+          },
+        },
+      });
+      if (task.assigneeId && task.assigneeId !== userId)
+        await createAppNotification(tx, {
+          kind: "STATUS_CHANGE",
+          recipientId: task.assigneeId,
+          actorId: userId,
+          organizationId,
+          projectId,
+          taskId: task.id,
+          metadata: {
+            taskId: task.id,
+            fromStatus: task.status,
+            toStatus: input.status,
+          },
+        });
+    }
     return snapshot(tx, projectId);
   });
   await publishRealtimeEvent({

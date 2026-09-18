@@ -7,6 +7,7 @@ import { requirePermission } from "../authorization/guards.ts";
 import { enqueueInvitationEmail } from "../../queue/email-queue.ts";
 import type { CreateInvitationInput } from "./invitation.schemas.ts";
 import { appendAuditEvent } from "../audit/audit.service.ts";
+import { createAppNotification } from "../notifications/notification.service.ts";
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function createInvitation(
@@ -42,6 +43,14 @@ export async function createInvitation(
         targetType: "invitation",
         targetId: created.id,
         metadata: { role: input.role },
+      });
+      await tx.activityEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          actorId: inviterId,
+          action: "member.invited",
+          metadata: { invitationId: created.id, email: input.email },
+        },
       });
       return created;
     });
@@ -100,6 +109,13 @@ export async function acceptInvitation(userId: string, token: string) {
       targetType: "invitation",
       targetId: invitation.id,
       metadata: { role: invitation.role },
+    });
+    await createAppNotification(tx, {
+      kind: "INVITATION",
+      recipientId: userId,
+      actorId: invitation.inviterId,
+      organizationId: invitation.organizationId,
+      metadata: { organizationId: invitation.organizationId },
     });
   });
 }

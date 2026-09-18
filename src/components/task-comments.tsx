@@ -598,7 +598,11 @@ export function TaskComments({
           const editable = comment.authorId === currentUserId || canManage;
           const isEditing = editingId === comment.id;
           return (
-            <article className="comment" key={comment.id}>
+            <article
+              className="comment"
+              id={`comment-${comment.id}`}
+              key={comment.id}
+            >
               <div className="comment-avatar" aria-hidden="true">
                 {comment.author.name.slice(0, 1).toUpperCase()}
               </div>

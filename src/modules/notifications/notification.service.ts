@@ -11,6 +11,10 @@ type Query = z.infer<typeof notificationQuerySchema>;
 
 const metadataKeys: Record<string, readonly string[]> = {
   mention: ["taskId", "commentId", "mentionedUserId"],
+  invitation: ["organizationId"],
+  assignment: ["taskId"],
+  status_change: ["taskId", "fromStatus", "toStatus"],
+  reminder: ["taskId", "dueDate"],
 };
 
 function safeMetadata(kind: string, metadata: unknown) {
@@ -146,4 +150,30 @@ export async function createMentionNotification(
     },
     select: { id: true },
   });
+}
+
+type AppNotificationKind =
+  "INVITATION" | "ASSIGNMENT" | "STATUS_CHANGE" | "REMINDER";
+const preferenceForKind = {
+  INVITATION: "invitationInApp",
+  ASSIGNMENT: "assignmentInApp",
+  STATUS_CHANGE: "statusChangeInApp",
+  REMINDER: "reminderInApp",
+} as const;
+
+export async function createAppNotification(
+  client: Prisma.TransactionClient,
+  data: {
+    kind: AppNotificationKind;
+    recipientId: string;
+    actorId?: string | null;
+    organizationId: string;
+    projectId?: string | null;
+    taskId?: string | null;
+    metadata?: Prisma.InputJsonValue;
+  },
+) {
+  const preferences = await getNotificationPreferences(data.recipientId);
+  if (!preferences[preferenceForKind[data.kind]]) return null;
+  return client.notification.create({ data, select: { id: true } });
 }
