@@ -8,6 +8,7 @@ import { enqueueInvitationEmail } from "../../queue/email-queue.ts";
 import type { CreateInvitationInput } from "./invitation.schemas.ts";
 import { appendAuditEvent } from "../audit/audit.service.ts";
 import { createAppNotification } from "../notifications/notification.service.ts";
+import { assertMemberAllowance } from "../billing/billing.service.ts";
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function createInvitation(
@@ -18,6 +19,7 @@ export async function createInvitation(
   const token = randomBytes(32).toString("base64url");
   try {
     const invitation = await database.$transaction(async (tx) => {
+      await assertMemberAllowance(tx, input.organizationId);
       const created = await tx.invitation.create({
         data: {
           organizationId: input.organizationId,
