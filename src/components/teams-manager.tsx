@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import {
   Check,
   Pencil,
@@ -8,6 +9,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  MessageCircle,
 } from "lucide-react";
 
 type Person = { id: string; name: string; email: string };
@@ -32,11 +34,13 @@ export function TeamsManager({
   canManage,
   members,
   initialTeams,
+  currentUserId,
 }: {
   organizationId: string;
   canManage: boolean;
   members: Member[];
   initialTeams: Team[];
+  currentUserId: string;
 }) {
   const [teams, setTeams] = useState(initialTeams);
   const [pending, setPending] = useState("");
@@ -254,6 +258,15 @@ export function TeamsManager({
                     <p>No one has joined this team yet.</p>
                   )}
                 </div>
+                {(canManage ||
+                  team.memberships.some(
+                    (member) => member.userId === currentUserId,
+                  )) && (
+                  <Link className="team-chat-link" href={`/teams/${team.id}`}>
+                    <MessageCircle size={15} aria-hidden="true" /> Open team
+                    chat
+                  </Link>
+                )}
                 {canManage && (
                   <div className="team-controls">
                     {available.length > 0 && (

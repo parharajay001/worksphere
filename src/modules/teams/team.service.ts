@@ -3,6 +3,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { database } from "../../database/client.ts";
 import { AppError } from "../../lib/api/errors.ts";
 import { requirePermission } from "../authorization/guards.ts";
+import { hasPermission } from "../authorization/permissions.ts";
 const slugify = (name: string) =>
   name
     .toLowerCase()
@@ -49,6 +50,32 @@ export async function listTeams(userId: string, organizationId: string) {
       _count: { select: { projects: true } },
     },
   });
+}
+export async function getTeam(userId: string, teamId: string) {
+  const team = await database.team.findUnique({
+    where: { id: teamId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      organizationId: true,
+      memberships: {
+        orderBy: { createdAt: "asc" },
+        select: { user: { select: { id: true, name: true, email: true } } },
+      },
+      _count: { select: { projects: true } },
+    },
+  });
+  if (!team) throw new AppError("NOT_FOUND");
+  const membership = await requirePermission(
+    userId,
+    team.organizationId,
+    "organization:read",
+  );
+  const belongs = team.memberships.some((entry) => entry.user.id === userId);
+  if (!belongs && !hasPermission(membership.role, "projects:manage"))
+    throw new AppError("NOT_FOUND");
+  return team;
 }
 export async function updateTeam(userId: string, teamId: string, name: string) {
   const team = await database.team.findUnique({
