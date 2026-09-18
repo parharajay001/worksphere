@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Bell,
   ChartNoAxesCombined,
@@ -10,13 +10,13 @@ import {
   FolderKanban,
   LayoutDashboard,
   Plus,
-  Search,
   Settings,
   Users,
 } from "lucide-react";
 import { Brand } from "./brand";
 import { WorkspacePicker } from "./workspace-picker";
 import { ProfileMenu } from "./profile-menu";
+import { GlobalSearch } from "./global-search";
 
 const navItems = [
   { href: "/dashboard", label: "Your work", icon: LayoutDashboard },
@@ -27,6 +27,13 @@ const navItems = [
 
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [hash, setHash] = useState("");
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    update();
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, [pathname]);
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
@@ -55,25 +62,17 @@ export function AppChrome({ children }: { children: ReactNode }) {
       <header className="product-topbar">
         <Brand />
         <WorkspacePicker />
-        <button
-          className="global-search"
-          type="button"
-          aria-label="Search WorkSphere"
-        >
-          <Search size={16} />
-          <span>Search work</span>
-          <kbd>/</kbd>
-        </button>
+        <GlobalSearch />
         <div className="topbar-actions">
           <Link href="/projects/new" aria-label="Create project">
             <Plus size={18} />
           </Link>
-          <button type="button" aria-label="Notifications">
-            <Bell size={18} />
-          </button>
-          <button type="button" aria-label="Help">
-            <CircleHelp size={18} />
-          </button>
+          <Link href="/notifications" aria-label="Notifications">
+            <Bell size={18} aria-hidden="true" />
+          </Link>
+          <Link href="/help" aria-label="Help">
+            <CircleHelp size={18} aria-hidden="true" />
+          </Link>
           <ProfileMenu />
         </div>
       </header>
@@ -91,7 +90,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className={`product-nav-item${index === 0 && pathname === "/dashboard" ? " active" : ""}`}
+                className={`product-nav-item${pathname === "/dashboard" && (index === 0 ? !hash : hash === new URL(href, "http://local").hash) ? " active" : ""}`}
               >
                 <Icon size={17} aria-hidden="true" />
                 {label}
@@ -102,18 +101,21 @@ export function AppChrome({ children }: { children: ReactNode }) {
             <p>Workspace</p>
             <Link
               href="/teams"
-              className={pathname === "/teams" ? "active" : undefined}
+              className={`product-nav-item${pathname === "/teams" ? " active" : ""}`}
             >
               <Users size={16} aria-hidden="true" /> Teams
             </Link>
             <Link
               href="/people"
-              className={pathname === "/people" ? "active" : undefined}
+              className={`product-nav-item${pathname === "/people" ? " active" : ""}`}
             >
               <Users size={16} aria-hidden="true" /> People
             </Link>
-            <Link href="/settings/workspace">
-              <Settings size={16} /> Settings
+            <Link
+              href="/settings/workspace"
+              className={`product-nav-item${pathname.startsWith("/settings") ? " active" : ""}`}
+            >
+              <Settings size={16} aria-hidden="true" /> Settings
             </Link>
           </div>
           <div className="sidebar-upgrade">

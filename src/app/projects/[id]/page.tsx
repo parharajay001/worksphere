@@ -62,7 +62,7 @@ export default async function ProjectPage({
   return (
     <article className="overview project-board-page">
       <div className="page-breadcrumbs">
-        <a href="/dashboard">Projects</a>
+        <Link href="/dashboard#projects">Projects</Link>
         <span>/</span>
         {project.name}
       </div>

@@ -13,6 +13,7 @@ export default defineConfig({
     env: {
       APP_URL: "http://localhost:3100",
       EMAIL_DELIVERY_PREVIEW: "true",
+      REDIS_DISABLED: "true",
     },
     url: "http://localhost:3100/api/health",
     reuseExistingServer: false,
