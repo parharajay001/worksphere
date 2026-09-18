@@ -146,6 +146,15 @@ export async function listMessages(
     where: { conversationId_userId: { conversationId, userId } },
     select: { lastReadAt: true },
   });
+  const readBy = await database.conversationReadState.findMany({
+    where: { conversationId, userId: { not: userId } },
+    orderBy: { lastReadAt: "desc" },
+    select: {
+      userId: true,
+      lastReadAt: true,
+      user: { select: { name: true } },
+    },
+  });
   return {
     messages: page.map((message) => ({
       ...message,
@@ -153,6 +162,11 @@ export async function listMessages(
     })),
     nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
     lastReadAt: readState?.lastReadAt.toISOString() ?? null,
+    readBy: readBy.map((state) => ({
+      userId: state.userId,
+      name: state.user.name,
+      lastReadAt: state.lastReadAt.toISOString(),
+    })),
   };
 }
 
@@ -194,12 +208,20 @@ export async function markConversationRead(
   userId: string,
   conversationId: string,
 ) {
-  await conversationAccess(userId, conversationId);
+  const conversation = await conversationAccess(userId, conversationId);
   const lastReadAt = new Date();
   await database.conversationReadState.upsert({
     where: { conversationId_userId: { conversationId, userId } },
     create: { conversationId, userId, lastReadAt },
     update: { lastReadAt },
+  });
+  await publishRealtimeEvent({
+    name: "chat.read",
+    target: {
+      roomKind: conversation.kind === "PROJECT" ? "project" : "team",
+      roomId: conversation.projectId ?? conversation.teamId!,
+    },
+    payload: { conversationId, userId, lastReadAt: lastReadAt.toISOString() },
   });
   return lastReadAt.toISOString();
 }

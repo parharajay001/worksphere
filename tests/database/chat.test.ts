@@ -20,6 +20,7 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
   let db: (typeof import("../../src/database/client.ts"))["database"];
   let chat: typeof import("../../src/modules/chat/chat.service.ts");
   let projects: typeof import("../../src/modules/projects/project.service.ts");
+  let teams: typeof import("../../src/modules/teams/team.service.ts");
   let billing: typeof import("../../src/modules/billing/billing.service.ts");
   let webhooks: typeof import("../../src/modules/billing/webhook.service.ts");
   let analytics: typeof import("../../src/modules/analytics/analytics.service.ts");
@@ -58,6 +59,7 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       db = (await import("../../src/database/client.ts")).database;
       chat = await import("../../src/modules/chat/chat.service.ts");
       projects = await import("../../src/modules/projects/project.service.ts");
+      teams = await import("../../src/modules/teams/team.service.ts");
       billing = await import("../../src/modules/billing/billing.service.ts");
       webhooks = await import("../../src/modules/billing/webhook.service.ts");
       analytics =
@@ -149,6 +151,11 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
     );
     assert.ok(page.nextCursor);
     assert.ok(await chat.markConversationRead(member, conversation.id));
+    const ownerView = await chat.listMessages(owner, conversation.id, {
+      limit: 20,
+    });
+    assert.equal(ownerView.readBy[0]?.userId, member);
+    assert.equal(ownerView.readBy[0]?.name, "Member");
     await assert.rejects(
       chat.listMessages(outsider, conversation.id, { limit: 20 }),
       appCode("NOT_FOUND"),
@@ -160,6 +167,7 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       teamId: team,
     });
     assert.equal(conversation.kind, "TEAM");
+    assert.equal((await teams.getTeam(member, team)).id, team);
     await assert.rejects(
       chat.ensureConversation(outsider, { teamId: team }),
       appCode("NOT_FOUND"),

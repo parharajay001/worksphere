@@ -13,6 +13,7 @@ import {
 const projectId = "30000000-0000-4000-8000-000000000001";
 const conversationId = "50000000-0000-4000-8000-000000000001";
 const messageId = "60000000-0000-4000-8000-000000000001";
+const userId = "70000000-0000-4000-8000-000000000001";
 
 test("conversation scopes require exactly one project or team", () => {
   assert.equal(createConversationSchema.safeParse({ projectId }).success, true);
@@ -41,6 +42,18 @@ test("chat and typing socket contracts reject excess data", () => {
       name: "chat.message",
       target: { roomKind: "project", roomId: projectId },
       payload: { conversationId, messageId },
+    }).success,
+    true,
+  );
+  assert.equal(
+    realtimeEventSchema.safeParse({
+      name: "chat.read",
+      target: { roomKind: "team", roomId: projectId },
+      payload: {
+        conversationId,
+        userId,
+        lastReadAt: "2026-09-19T10:00:00.000Z",
+      },
     }).success,
     true,
   );

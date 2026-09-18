@@ -43,6 +43,7 @@ export default async function TeamsPage() {
         canManage={hasPermission(membership.role, "members:manage")}
         members={members}
         initialTeams={teams}
+        currentUserId={user.id}
       />
     </div>
   );

@@ -9,7 +9,7 @@ import { AppError } from "@/lib/api/errors";
 import { projectIdSchema } from "@/modules/projects/project.schemas";
 import { listActivity } from "@/modules/activity/activity.service";
 import { ActivityFeed } from "@/components/activity-feed";
-import { ProjectChat } from "@/components/project-chat";
+import { ConversationChat } from "@/components/conversation-chat";
 import { ensureConversation, listMessages } from "@/modules/chat/chat.service";
 import Link from "next/link";
 import { Settings } from "lucide-react";
@@ -48,10 +48,12 @@ export default async function ProjectPage({
   });
   const messages = await listMessages(user.id, conversation.id, { limit: 30 });
   const canManage = hasPermission(membership.role, "projects:manage");
+  const organizationMembers = await getOrganizationMembers(
+    user.id,
+    project.organizationId,
+  );
   const members = canManage
-    ? (await getOrganizationMembers(user.id, project.organizationId)).map(
-        ({ user: member }) => member,
-      )
+    ? organizationMembers.map(({ user: member }) => member)
     : Array.from(
         new Map(
           board.tasks
@@ -115,11 +117,13 @@ export default async function ProjectPage({
         />
       </div>
       <div id="chat">
-        <ProjectChat
-          projectId={project.id}
+        <ConversationChat
+          scope={{ kind: "project", id: project.id }}
           conversationId={conversation.id}
           currentUserId={user.id}
+          participants={organizationMembers.map(({ user: member }) => member)}
           initialPage={messages}
+          title="Project chat"
         />
       </div>
     </article>

@@ -48,6 +48,19 @@ export const realtimeEventSchema = z.discriminatedUnion("name", [
       .object({ conversationId: z.uuid(), messageId: z.uuid() })
       .strict(),
   }),
+  z.object({
+    name: z.literal("chat.read"),
+    target: z
+      .object({ roomKind: z.enum(["project", "team"]), roomId: z.uuid() })
+      .strict(),
+    payload: z
+      .object({
+        conversationId: z.uuid(),
+        userId: z.uuid(),
+        lastReadAt: z.iso.datetime(),
+      })
+      .strict(),
+  }),
 ]);
 
 export const typingEventSchema = z
