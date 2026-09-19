@@ -135,10 +135,13 @@ and [config reference](https://www.prisma.io/docs/orm/v7/reference/prisma-config
 
 ## Repeatable seed and integration tests
 
-`npm run db:seed` uses transactional upserts to add one organization
-(`worksphere-demo`), three demo users (`owner`, `manager`, and `member` at
-`worksphere.example`), and their memberships. Repeating it does not duplicate
-records or overwrite edits. It refuses production mode and non-loopback hosts.
+`npm run db:seed` uses transactional upserts and stable seed-owned IDs to build
+the populated Northstar Collective showcase workspace (`worksphere-demo`). It
+includes five people, three teams, four projects, Kanban tasks in every state,
+comments, recent activity, notifications, chat, a pending invitation, billing
+usage, and audit history. Repeating it refreshes time-sensitive showcase data
+without duplicating records. The owner demo login is documented in the root
+README. Seeding refuses production mode and non-loopback database hosts.
 
 `npm run test:db` connects to the local server, creates a randomly named
 `worksphere_test_<uuid>` database, applies the real committed migrations, runs
