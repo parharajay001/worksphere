@@ -39,6 +39,20 @@ export async function listAuditEvents(
   const records = await database.auditEvent.findMany({
     where: {
       tenantId: query.organizationId,
+      ...(query.action ? { action: query.action } : {}),
+      ...(query.actorId ? { actorId: query.actorId } : {}),
+      ...(query.from || query.to
+        ? {
+            createdAt: {
+              ...(query.from
+                ? { gte: new Date(`${query.from}T00:00:00.000Z`) }
+                : {}),
+              ...(query.to
+                ? { lte: new Date(`${query.to}T23:59:59.999Z`) }
+                : {}),
+            },
+          }
+        : {}),
       ...(before
         ? {
             OR: [
@@ -50,12 +64,36 @@ export async function listAuditEvents(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: query.limit + 1,
+    select: {
+      id: true,
+      action: true,
+      targetType: true,
+      targetId: true,
+      metadata: true,
+      createdAt: true,
+      actorId: true,
+    },
   });
   const hasMore = records.length > query.limit;
   const events = hasMore ? records.slice(0, query.limit) : records;
+  const actorIds = [
+    ...new Set(
+      events.flatMap((event) => (event.actorId ? [event.actorId] : [])),
+    ),
+  ];
+  const actors = actorIds.length
+    ? await database.user.findMany({
+        where: { id: { in: actorIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
   return {
     events: events.map((event) => ({
       ...event,
+      actorName: event.actorId
+        ? (actorNames.get(event.actorId) ?? "Former member")
+        : "System",
       createdAt: event.createdAt.toISOString(),
     })),
     nextCursor: hasMore ? (events.at(-1)?.id ?? null) : null,

@@ -13,7 +13,10 @@ export const GET = createApiHandler(
   async (request) => {
     const user = await getSessionUser();
     if (!user) throw new AppError("UNAUTHENTICATED");
-    const { organizationId } = await parseQuery(request, analyticsQuerySchema);
-    return success(await getAnalytics(user.id, organizationId));
+    const { organizationId, ...query } = await parseQuery(
+      request,
+      analyticsQuerySchema,
+    );
+    return success(await getAnalytics(user.id, organizationId, query));
   },
 );
