@@ -5148,6 +5148,17 @@ body {
   min-width: 0;
   background: #f0f3f5;
   border-top: 2px solid #a2adb5;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.kanban-column.drag-target {
+  background: #e9f2ff;
+  box-shadow:
+    inset 0 0 0 2px #0c66e4,
+    0 8px 20px #0c66e418;
+  transform: translateY(-2px);
 }
 .kanban-column > header {
   display: flex;
@@ -5197,6 +5208,20 @@ body {
   min-height: 300px;
   padding: 0 8px 16px;
 }
+.kanban-drop-indicator {
+  margin: 0 0 10px;
+  border: 2px dashed #0c66e4;
+  border-radius: 6px;
+  padding: 13px 10px;
+  background: #f7fbff;
+  color: #0055cc;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
 .kanban-column.is-over {
   background: #e5edf1;
 }
@@ -5212,8 +5237,24 @@ body {
 }
 .kanban-task.is-dragging {
   z-index: 5;
-  box-shadow: 0 6px 20px #20344225;
-  opacity: 0.85;
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.22;
+}
+.kanban-drag-overlay {
+  width: 100%;
+  margin: 0;
+  border-color: #85b8ff;
+  box-shadow:
+    0 18px 35px #091e4230,
+    0 0 0 2px #0c66e426;
+  opacity: 0.98;
+  cursor: grabbing;
+  transform: rotate(1.25deg) scale(1.02);
+  transform-origin: center;
+}
+.kanban-drag-overlay .kanban-task-title {
+  color: #172b4d;
 }
 .kanban-task-top {
   display: flex;
@@ -5456,12 +5497,40 @@ body {
 }
 
 /* Final responsive workspace overrides follow the legacy shell rules. */
+.mobile-nav-trigger,
+.mobile-nav-close,
+.mobile-nav-backdrop {
+  display: none;
+}
 @media (max-width: 1000px) {
   .workspace-menu .workspace-picker {
     display: flex;
   }
+  .product-topbar {
+    grid-template-columns: 190px auto minmax(160px, 1fr) auto;
+  }
 }
 @media (max-width: 760px) {
+  .product-topbar {
+    grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .mobile-nav-trigger,
+  .mobile-nav-close {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+  }
+  .mobile-nav-trigger:hover,
+  .mobile-nav-trigger:focus-visible {
+    background: #ffffff18;
+  }
   .workspace-menu {
     display: block;
   }
@@ -5472,5 +5541,197 @@ body {
   .workspace-menu .workspace-picker > span:nth-child(2),
   .workspace-menu .workspace-picker > svg {
     display: none;
+  }
+  .global-search {
+    min-width: 0;
+  }
+  .topbar-actions > a:nth-child(2),
+  .topbar-actions > a:nth-child(3) {
+    display: none;
+  }
+  .product-sidebar {
+    top: 56px;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: min(84vw, 300px);
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 12px calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 18px 0 44px #091e4238;
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+  }
+  .product-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 56px 0 0;
+    z-index: 55;
+    display: block;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: #091e426b;
+    backdrop-filter: blur(2px);
+  }
+  .product-sidebar .sidebar-project {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+    border-bottom: 1px solid #d8dbe1;
+    padding: 0 2px 16px;
+  }
+  .product-sidebar .sidebar-project > span:nth-child(2) {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .product-sidebar .sidebar-project strong,
+  .product-sidebar .sidebar-project small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-nav-close {
+    border: 1px solid #b7bec9;
+    background: #fff;
+    color: #44546f;
+  }
+  .mobile-nav-close:hover,
+  .mobile-nav-close:focus-visible {
+    border-color: #85b8ff;
+    background: #e9f2ff;
+    color: #0c66e4;
+  }
+  .product-sidebar nav,
+  .product-sidebar .sidebar-section {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: none;
+    gap: 2px;
+  }
+  .product-sidebar .sidebar-section {
+    margin-top: 25px;
+    border-top: 1px solid #d8dbe1;
+    padding-top: 16px;
+  }
+  .product-sidebar .sidebar-section > p {
+    display: block;
+  }
+  .product-sidebar .product-nav-item,
+  .product-sidebar .sidebar-section a {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 11px;
+    padding: 0 11px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .product-sidebar .sidebar-upgrade {
+    display: block;
+    width: 100%;
+    margin-top: auto;
+  }
+  .product-main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .project-tabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .project-tabs a {
+    flex: 0 0 auto;
+  }
+  .audit-ledger table {
+    min-width: 640px;
+  }
+}
+
+@media (max-width: 480px) {
+  .overview {
+    padding-inline: 14px;
+  }
+  .dashboard-header h1,
+  .project-page-header h1,
+  .task-detail-main > h1 {
+    overflow-wrap: anywhere;
+  }
+  .analytics-dashboard,
+  .analytics-chart-card,
+  .audit-ledger,
+  .billing-usage,
+  .billing-plans,
+  .billing-management,
+  .activity-page .activity-feed {
+    padding: 16px;
+  }
+  .analytics-heading,
+  .billing-section-heading,
+  .notification-center-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .analytics-export {
+    width: 100%;
+  }
+  .analytics-filters,
+  .audit-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .analytics-filters label,
+  .audit-filters label {
+    flex: none;
+  }
+  .analytics-filters button,
+  .audit-filters button {
+    width: 100%;
+  }
+  .team-activity-list > div {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .settings-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .settings-actions > * {
+    width: 100%;
+  }
+  .task-create-backdrop {
+    align-items: end;
+    padding: 8px;
+  }
+  .task-create-dialog {
+    max-height: calc(100svh - 16px);
+    border-radius: 10px 10px 4px 4px;
+    padding: 20px 16px;
+  }
+  .project-card {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 11px;
+    padding: 14px;
+  }
+  .project-card-icon {
+    width: 38px;
+    height: 38px;
   }
 }

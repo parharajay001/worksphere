@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-export function SidebarPlan() {
+export function SidebarPlan({ onNavigate }: { onNavigate?: () => void }) {
   const [plan, setPlan] = useState<string>("");
   const [projects, setProjects] = useState<{
     value: number;
@@ -52,7 +52,11 @@ export function SidebarPlan() {
     };
   }, [revision]);
   return (
-    <Link className="sidebar-upgrade" href="/settings/billing">
+    <Link
+      className="sidebar-upgrade"
+      href="/settings/billing"
+      onClick={onNavigate}
+    >
       <span>{plan ? `${plan} PLAN` : "PLAN & USAGE"}</span>
       <strong>
         {projects

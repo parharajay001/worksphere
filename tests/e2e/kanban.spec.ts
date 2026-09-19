@@ -50,12 +50,15 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
       page.locator(`[data-column="${status}"]`);
     const card = (id: string) => page.locator(`[data-task-id="${id}"]`);
     await expect(column("TODO").locator("article")).toHaveCount(3);
+    await page.waitForTimeout(750);
 
     // Pointer drag into an empty column exercises the droppable column itself.
     const handle = page.getByRole("button", {
       name: "Move Review launch checklist",
       exact: true,
     });
+    await expect(handle).toBeVisible();
+    await expect(column("IN_PROGRESS")).toBeVisible();
     const start = await handle.boundingBox();
     const end = await column("IN_PROGRESS").boundingBox();
     if (!start || !end) throw new Error("Board drag targets must be visible");
@@ -64,8 +67,16 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
       start.y + start.height / 2,
     );
     await page.mouse.down();
-    await page.mouse.move(start.x + 12, start.y + 12, { steps: 3 });
+    await page.mouse.move(start.x + 32, start.y + 32, { steps: 8 });
+    await expect(page.locator(".kanban-drag-overlay")).toBeVisible();
+    await expect(card(taskIds[0]!)).toHaveClass(/is-dragging/);
     await page.mouse.move(end.x + end.width / 2, end.y + 50, { steps: 15 });
+    await expect(page.locator(".column-in_progress")).toHaveClass(
+      /drag-target/,
+    );
+    await expect(
+      page.locator(".column-in_progress .kanban-drop-indicator"),
+    ).toContainText("Drop in In progress");
     await page.mouse.up();
     await expect(
       column("IN_PROGRESS").getByRole("link", {
