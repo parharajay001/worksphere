@@ -12,15 +12,50 @@ import { getAnalytics } from "@/modules/analytics/analytics.service";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { requireMembership } from "@/modules/organizations/organization.service";
 import { hasPermission } from "@/modules/authorization/permissions";
+import { analyticsQuerySchema } from "@/modules/analytics/analytics.schemas";
+import { listTeams } from "@/modules/teams/team.service";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const activeOrganization = await getActiveOrganization(user.id);
+  const rawQuery = await searchParams;
+  const parsedAnalytics = activeOrganization
+    ? analyticsQuerySchema.safeParse({
+        organizationId: activeOrganization.id,
+        ...(typeof rawQuery.projectId === "string" && rawQuery.projectId
+          ? { projectId: rawQuery.projectId }
+          : {}),
+        ...(typeof rawQuery.teamId === "string" && rawQuery.teamId
+          ? { teamId: rawQuery.teamId }
+          : {}),
+        ...(typeof rawQuery.from === "string" && rawQuery.from
+          ? { from: rawQuery.from }
+          : {}),
+        ...(typeof rawQuery.to === "string" && rawQuery.to
+          ? { to: rawQuery.to }
+          : {}),
+      })
+    : null;
+  const analyticsFilters = parsedAnalytics?.success
+    ? {
+        projectId: parsedAnalytics.data.projectId,
+        teamId: parsedAnalytics.data.teamId,
+        from: parsedAnalytics.data.from,
+        to: parsedAnalytics.data.to,
+      }
+    : {};
   const projects = activeOrganization
     ? await listProjects(user.id, activeOrganization.id)
+    : [];
+  const teams = activeOrganization
+    ? await listTeams(user.id, activeOrganization.id)
     : [];
   const activeMembership = activeOrganization
     ? await requireMembership(user.id, activeOrganization.id)
@@ -40,7 +75,8 @@ export default async function DashboardPage() {
     unreadOnly: false,
   });
   const analytics = activeOrganization
-    ? (await getAnalytics(user.id, activeOrganization.id)).analytics
+    ? (await getAnalytics(user.id, activeOrganization.id, analyticsFilters))
+        .analytics
     : null;
 
   return (
@@ -70,6 +106,9 @@ export default async function DashboardPage() {
           <AnalyticsDashboard
             organizationId={activeOrganization.id}
             analytics={analytics}
+            projects={projects.map(({ id, name }) => ({ id, name }))}
+            teams={teams.map(({ id, name }) => ({ id, name }))}
+            filters={analyticsFilters}
           />
         </div>
       )}

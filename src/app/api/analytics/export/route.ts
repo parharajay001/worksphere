@@ -13,8 +13,11 @@ export const GET = createApiHandler(
   async (request) => {
     const user = await getSessionUser();
     if (!user) throw new AppError("UNAUTHENTICATED");
-    const { organizationId } = await parseQuery(request, analyticsQuerySchema);
-    const { analytics } = await getAnalytics(user.id, organizationId);
+    const { organizationId, ...query } = await parseQuery(
+      request,
+      analyticsQuerySchema,
+    );
+    const { analytics } = await getAnalytics(user.id, organizationId, query);
     const rows: (string | number)[][] = [
       ["metric", "value"],
       ["projects", analytics.projects],
@@ -24,6 +27,14 @@ export const GET = createApiHandler(
       ...Object.entries(analytics.tasksByStatus).map(([status, count]) => [
         `tasks_${status.toLowerCase()}`,
         count,
+      ]),
+      ...analytics.productivityTrend.map((item) => [
+        `completed_${item.date}`,
+        item.completed,
+      ]),
+      ...analytics.teamActivity.map((item) => [
+        `team_activity_${item.name}`,
+        item.events,
       ]),
     ];
     const csv =

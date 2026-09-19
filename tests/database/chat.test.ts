@@ -119,6 +119,10 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
           },
         })
       ).id;
+      await db.project.update({
+        where: { id: project },
+        data: { teamId: team },
+      });
       await db.project.create({
         data: {
           organizationId: other.id,
@@ -287,6 +291,12 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
     assert.ok(snapshot.analytics.projects >= 3);
     assert.equal(snapshot.analytics.tasksByStatus.DONE, 1);
     assert.equal(snapshot.analytics.activeUsers30d, 1);
+    assert.ok(snapshot.analytics.productivityTrend.length > 0);
+    assert.equal(snapshot.analytics.teamActivity[0]?.name, "Team chat");
+    const filtered = await analytics.getAnalytics(owner, organizationId, {
+      teamId: team,
+    });
+    assert.equal(filtered.analytics.projects, 1);
     await assert.rejects(
       analytics.getAnalytics(outsider, organizationId),
       appCode("NOT_FOUND"),
@@ -300,6 +310,21 @@ describe("tenant-scoped chat in a disposable PostgreSQL database", () => {
       ledger.events.some(
         (event) => event.action === "billing.subscription_changed",
       ),
+    );
+    const billingOnly = await audit.listAuditEvents(owner, {
+      organizationId,
+      action: "billing.subscription_changed",
+      limit: 50,
+    });
+    assert.ok(billingOnly.events.length > 0);
+    assert.ok(
+      billingOnly.events.every(
+        (event) => event.action === "billing.subscription_changed",
+      ),
+    );
+    await assert.rejects(
+      audit.listAuditEvents(member, { organizationId, limit: 50 }),
+      appCode("FORBIDDEN"),
     );
     const eventId = ledger.events[0]!.id;
     await assert.rejects(

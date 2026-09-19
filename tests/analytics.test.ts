@@ -28,4 +28,21 @@ test("analytics and audit queries reject injected or unbounded input", () => {
     auditQuerySchema.safeParse({ organizationId, limit: "101" }).success,
     false,
   );
+  assert.equal(
+    analyticsQuerySchema.safeParse({
+      organizationId,
+      from: "2026-09-30",
+      to: "2026-09-01",
+    }).success,
+    false,
+  );
+  assert.equal(
+    auditQuerySchema.safeParse({
+      organizationId,
+      action: "project.created",
+      from: "2026-09-01",
+      to: "2026-09-30",
+    }).success,
+    true,
+  );
 });

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   Bell,
   ChartNoAxesCombined,
@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Plus,
   Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { Brand } from "./brand";
@@ -21,20 +22,13 @@ import { SidebarPlan } from "./sidebar-plan";
 
 const navItems = [
   { href: "/dashboard", label: "Your work", icon: LayoutDashboard },
-  { href: "/dashboard#projects", label: "Projects", icon: FolderKanban },
-  { href: "/dashboard#analytics", label: "Reports", icon: ChartNoAxesCombined },
-  { href: "/dashboard#activity", label: "Activity", icon: Clock3 },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/analytics", label: "Reports", icon: ChartNoAxesCombined },
+  { href: "/activity", label: "Activity", icon: Clock3 },
 ];
 
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [hash, setHash] = useState("");
-  useEffect(() => {
-    const update = () => setHash(window.location.hash);
-    update();
-    window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
-  }, [pathname]);
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
@@ -87,11 +81,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
             </span>
           </div>
           <nav aria-label="Workspace navigation">
-            {navItems.map(({ href, label, icon: Icon }, index) => (
+            {navItems.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className={`product-nav-item${pathname === "/dashboard" && (index === 0 ? !hash : hash === new URL(href, "http://local").hash) ? " active" : ""}`}
+                className={`product-nav-item${pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)) ? " active" : ""}`}
               >
                 <Icon size={17} aria-hidden="true" />
                 {label}
@@ -114,9 +108,15 @@ export function AppChrome({ children }: { children: ReactNode }) {
             </Link>
             <Link
               href="/settings/workspace"
-              className={`product-nav-item${pathname.startsWith("/settings") ? " active" : ""}`}
+              className={`product-nav-item${pathname.startsWith("/settings") && pathname !== "/settings/audit" ? " active" : ""}`}
             >
               <Settings size={16} aria-hidden="true" /> Settings
+            </Link>
+            <Link
+              href="/settings/audit"
+              className={`product-nav-item${pathname === "/settings/audit" ? " active" : ""}`}
+            >
+              <ShieldCheck size={16} aria-hidden="true" /> Audit log
             </Link>
           </div>
           <SidebarPlan />
