@@ -98,7 +98,7 @@ describe("PostgreSQL foundation", { concurrency: false }, () => {
     assert.match(prisma("migrate", "status"), /up to date/);
   });
 
-  test("seed CLI is repeatable and creates no working credentials", async () => {
+  test("seed CLI is repeatable and creates a populated local demo", async () => {
     prisma("db", "seed");
     const beforeSeed = await database.user.findMany({
       orderBy: { email: "asc" },
@@ -115,15 +115,28 @@ describe("PostgreSQL foundation", { concurrency: false }, () => {
       await database.membership.findMany({ orderBy: { id: "asc" } }),
       beforeMemberships,
     );
-    assert.equal(beforeSeed.length, 3);
-    assert.equal(beforeMemberships.length, 4);
+    assert.equal(beforeSeed.length, 5);
+    assert.equal(beforeMemberships.length, 6);
     assert.equal(await database.organization.count(), 2);
     assert.equal(await database.account.count(), 0);
     assert.equal(await database.session.count(), 0);
+    assert.equal(await database.team.count(), 3);
+    assert.equal(await database.project.count(), 4);
+    assert.equal(await database.task.count(), 18);
+    assert.equal(await database.comment.count(), 5);
+    assert.equal(await database.activityEvent.count(), 12);
+    assert.equal(await database.notification.count(), 4);
+    assert.equal(await database.chatMessage.count(), 3);
+    assert.equal(await database.auditEvent.count(), 5);
+    const demoOwner = beforeSeed.find(
+      (user) => user.email === "owner@worksphere.example",
+    );
+    assert.ok(demoOwner?.passwordHash?.startsWith("scrypt$"));
+    assert.ok(demoOwner?.emailVerifiedAt);
     assert.ok(
-      beforeSeed.every(
-        (user) => user.passwordHash === null && user.emailVerifiedAt === null,
-      ),
+      beforeSeed
+        .filter((user) => user.email !== "owner@worksphere.example")
+        .every((user) => user.passwordHash === null),
     );
   });
 

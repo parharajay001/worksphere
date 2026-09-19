@@ -37,7 +37,7 @@ function relativeDate(value: string) {
   if (age < 60_000) return "just now";
   if (age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
   if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -494,7 +494,7 @@ export function TaskComments({
               value={body}
               maxLength={5000}
               rows={3}
-              placeholder="Share an update or useful context..."
+              placeholder="Share an update or useful context…"
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={mention !== null}
@@ -577,15 +577,15 @@ export function TaskComments({
             title="Post comment"
             disabled={!body.trim() || pending !== null}
           >
-            <Send size={17} />
+            <Send size={17} aria-hidden="true" />
           </button>
         </div>
       </form>
       <div className="comments-feedback" role="status" aria-live="polite">
         {pending === "load"
-          ? "Loading comments..."
+          ? "Loading comments…"
           : pending === "create"
-            ? "Posting..."
+            ? "Posting…"
             : status}
       </div>
       {error && (
@@ -637,9 +637,13 @@ export function TaskComments({
                         disabled={!editingBody.trim() || pending === comment.id}
                       >
                         {pending === comment.id ? (
-                          <LoaderCircle className="spin" size={15} />
+                          <LoaderCircle
+                            className="spin"
+                            size={15}
+                            aria-hidden="true"
+                          />
                         ) : (
-                          <Check size={15} />
+                          <Check size={15} aria-hidden="true" />
                         )}
                       </button>
                       <button
@@ -650,7 +654,7 @@ export function TaskComments({
                         onClick={() => setEditingId(null)}
                         disabled={pending === comment.id}
                       >
-                        <X size={15} />
+                        <X size={15} aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -667,7 +671,7 @@ export function TaskComments({
                       onClick={() => startEdit(comment)}
                       disabled={pending !== null}
                     >
-                      <Pencil size={14} />
+                      <Pencil size={14} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -677,7 +681,7 @@ export function TaskComments({
                       onClick={() => void remove(comment.id)}
                       disabled={pending !== null}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   </div>
                 )}
@@ -698,7 +702,7 @@ export function TaskComments({
           onClick={() => void loadMore()}
           disabled={pending !== null}
         >
-          {pending === "load" ? "Loading..." : "Load older comments"}
+          {pending === "load" ? "Loading…" : "Load older comments"}
         </button>
       )}
     </section>

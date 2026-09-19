@@ -15,8 +15,9 @@ const database = createDatabaseClient(DATABASE_URL);
 try {
   const result = await seedDevelopmentData(database);
   console.log(
-    `Seed ready: ${result.organizations.join(", ")}, ${result.users} demo users. No login credentials created.`,
+    `Demo seed ready: ${result.organizations.join(", ")}; ${result.users} users, ${result.teams} teams, ${result.projects} projects, and ${result.tasks} tasks.`,
   );
+  console.log(`Local demo login: ${result.demoLogin} / WorkSphereDemo!2026`);
 } catch {
   console.error(
     "Database seed failed. Check configuration and run npm run db:deploy first.",

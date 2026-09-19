@@ -11,17 +11,22 @@ export function OrganizationSwitcher({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   if (organizations.length === 0)
     return <p className="quiet-label">No organizations yet.</p>;
   async function change(id: string) {
     setPending(true);
+    setError("");
     try {
-      await fetch("/api/organizations/active", {
+      const response = await fetch("/api/organizations/active", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!response.ok) throw new Error();
       router.refresh();
+    } catch {
+      setError("Organization could not be switched. Try again.");
     } finally {
       setPending(false);
     }
@@ -30,6 +35,7 @@ export function OrganizationSwitcher({
     <label className="org-switcher">
       Active organization
       <select
+        name="activeOrganizationId"
         value={activeId ?? organizations[0]?.id}
         disabled={pending}
         onChange={(event) => void change(event.target.value)}
@@ -40,6 +46,9 @@ export function OrganizationSwitcher({
           </option>
         ))}
       </select>
+      <span className="org-switcher-status" role="status" aria-live="polite">
+        {pending ? "Switching organization…" : error}
+      </span>
     </label>
   );
 }

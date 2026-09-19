@@ -6,6 +6,81 @@ MarketForge sequence. Later projects will reuse proven infrastructure patterns.
 
 **Current milestone: Day 16 - Redis caching and rate limits.**
 
+## Product tour
+
+![WorkSphere application flow](docs/assets/worksphere-demo.gif)
+
+The seeded showcase follows a real workspace from its portfolio-level pulse to
+delivery details: teams can review workload and throughput, coordinate work on
+a visual board, and keep task decisions connected to the people making them.
+
+<details open>
+<summary><strong>Getting started</strong></summary>
+
+| Product home                                                | Account registration                                                     |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| ![WorkSphere product home](docs/assets/worksphere-home.png) | ![WorkSphere registration flow](docs/assets/worksphere-registration.png) |
+
+| Demo sign-in                                          | Responsive navigation                                                         |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
+| ![WorkSphere login](docs/assets/worksphere-login.png) | ![WorkSphere mobile navigation](docs/assets/worksphere-mobile-navigation.png) |
+
+</details>
+
+<details>
+<summary><strong>Workspace overview</strong></summary>
+
+| Workspace intelligence                                                  | Project directory                                                    |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| ![WorkSphere workspace dashboard](docs/assets/worksphere-dashboard.png) | ![WorkSphere project directory](docs/assets/worksphere-projects.png) |
+
+| Reporting                                                           | Activity timeline                                                    |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| ![WorkSphere reports dashboard](docs/assets/worksphere-reports.png) | ![WorkSphere activity timeline](docs/assets/worksphere-activity.png) |
+
+</details>
+
+<details>
+<summary><strong>Project delivery</strong></summary>
+
+| Kanban board                                                           | Task detail and discussion                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![WorkSphere populated Kanban board](docs/assets/worksphere-board.png) | ![WorkSphere task detail and discussion](docs/assets/worksphere-task.png) |
+
+| Project activity                                                            | Project chat                                                        |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| ![WorkSphere project activity](docs/assets/worksphere-project-activity.png) | ![WorkSphere project chat](docs/assets/worksphere-project-chat.png) |
+
+</details>
+
+<details>
+<summary><strong>People and communication</strong></summary>
+
+| Team directory                                                 | Team room                                                             |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ![WorkSphere team directory](docs/assets/worksphere-teams.png) | ![WorkSphere team conversation](docs/assets/worksphere-team-chat.png) |
+
+| People and invitations                                             | Notification center                                                         |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| ![WorkSphere people management](docs/assets/worksphere-people.png) | ![WorkSphere notification center](docs/assets/worksphere-notifications.png) |
+
+</details>
+
+<details>
+<summary><strong>Administration</strong></summary>
+
+| Project settings                                                            | Workspace settings                                                              |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| ![WorkSphere project settings](docs/assets/worksphere-project-settings.png) | ![WorkSphere workspace settings](docs/assets/worksphere-workspace-settings.png) |
+
+| Account settings                                                            | Billing and capacity                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ![WorkSphere account settings](docs/assets/worksphere-account-settings.png) | ![WorkSphere billing settings](docs/assets/worksphere-billing.png) |
+
+![WorkSphere audit log](docs/assets/worksphere-audit.png)
+
+</details>
+
 ## Local setup
 
 Prerequisites: Git, Docker with Compose (Docker Desktop on Windows), and Node.js
@@ -102,6 +177,11 @@ covers Redis caching and rate limits.
 `npm run test:db` after `npm run db:up` to verify actual database behavior.
 Development, builds, typechecking, and database tests generate Prisma Client
 automatically. Generated code is ignored by Git.
+
+The local seed creates a populated `Northstar Collective` showcase workspace.
+After `npm run db:seed`, sign in with `owner@worksphere.example` and
+`WorkSphereDemo!2026`. This credential is restricted to the loopback-only
+development seed and must not be used in a deployed environment.
 
 **Upgrading from Day 1:** run `npm ci`, `npm run setup`, and `npm run db:setup`.
 The setup helper adds `DATABASE_URL` without changing your existing `APP_URL`.

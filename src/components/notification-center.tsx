@@ -35,7 +35,7 @@ function relativeDate(value: string) {
   if (age < 60_000) return "just now";
   if (age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
   if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
-  return new Date(value).toLocaleDateString("en-US", {
+  return new Date(value).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -49,6 +49,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
 
   const kindCopy = {
@@ -89,6 +90,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
     );
     setPending(id);
     setError("");
+    setStatus("");
     try {
       const response = await fetch(`/api/notifications/${id}/read`, {
         method: "POST",
@@ -102,6 +104,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
         ),
       );
       if (wasUnread) setUnreadCount((current) => Math.max(0, current - 1));
+      setStatus("Notification marked as read.");
       if (unreadOnly)
         setNotifications((current) =>
           current.filter((entry) => entry.id !== id),
@@ -126,6 +129,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
     if (pending || unreadCount === 0) return;
     setPending("all");
     setError("");
+    setStatus("");
     try {
       const response = await fetch("/api/notifications/read-all", {
         method: "POST",
@@ -137,6 +141,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
       );
       if (unreadOnly) setNotifications([]);
       setUnreadCount(0);
+      setStatus("All notifications marked as read.");
     } catch {
       setError("Notifications could not be marked as read.");
     } finally {
@@ -148,6 +153,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
     if (!nextCursor || pending) return;
     setPending("load");
     setError("");
+    setStatus("");
     try {
       const response = await fetch(
         `/api/notifications?limit=20&unreadOnly=${unreadOnly}&cursor=${encodeURIComponent(nextCursor)}`,
@@ -157,6 +163,7 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
       const result = (await response.json()) as { data: Page };
       setNotifications((current) => [...current, ...result.data.notifications]);
       setNextCursor(result.data.nextCursor);
+      setStatus("Older notifications loaded.");
     } catch {
       setError("More notifications could not be loaded.");
     } finally {
@@ -185,9 +192,9 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
             disabled={pending !== null || unreadCount === 0}
           >
             {pending === "all" ? (
-              <LoaderCircle className="spin" size={13} />
+              <LoaderCircle className="spin" size={13} aria-hidden="true" />
             ) : (
-              <CheckCheck size={13} />
+              <CheckCheck size={13} aria-hidden="true" />
             )}
             Mark all read
           </button>
@@ -268,9 +275,16 @@ export function NotificationCenter({ initialPage }: { initialPage: Page }) {
           onClick={() => void loadMore()}
           disabled={pending !== null}
         >
-          {pending === "load" ? "Loading..." : "Load older notifications"}
+          {pending === "load" ? "Loading…" : "Load older notifications"}
         </button>
       )}
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending === "all"
+          ? "Marking all notifications as read…"
+          : pending === "load"
+            ? "Loading older notifications…"
+            : status}
+      </span>
     </section>
   );
 }

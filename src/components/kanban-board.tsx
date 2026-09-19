@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCorners,
@@ -12,6 +13,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -40,9 +43,44 @@ import {
   type TaskStatus,
 } from "@/modules/tasks/board";
 import { useRealtimeRoom } from "@/realtime/use-realtime-room";
+import { useModalDialog } from "@/lib/ui/use-modal-dialog";
 
 type Move = (id: string, status: TaskStatus, index: number) => void;
 type Member = { id: string; name: string; email: string };
+
+function DragTaskCard({ task }: { task: BoardTask }) {
+  return (
+    <article className="kanban-task kanban-drag-overlay" aria-hidden="true">
+      <div className="kanban-task-top">
+        <span
+          className={`task-priority priority-${task.priority.toLowerCase()}`}
+        >
+          {task.priority.toLowerCase()}
+        </span>
+        <GripVertical size={16} aria-hidden="true" />
+      </div>
+      <strong className="kanban-task-title">{task.title}</strong>
+      <div className="kanban-task-meta">
+        <span className="task-person">
+          <span className="task-avatar" aria-hidden="true">
+            {task.assignee?.name.slice(0, 1).toUpperCase() ?? "-"}
+          </span>
+          {task.assignee?.name ?? "Unassigned"}
+        </span>
+        {task.dueDate && (
+          <time dateTime={task.dueDate}>
+            <CalendarDays size={13} aria-hidden="true" />
+            {new Date(task.dueDate).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            })}
+          </time>
+        )}
+      </div>
+    </article>
+  );
+}
 
 function TaskCard({
   task,
@@ -110,7 +148,7 @@ function TaskCard({
         {task.dueDate && (
           <time dateTime={task.dueDate}>
             <CalendarDays size={13} aria-hidden="true" />
-            {new Date(task.dueDate).toLocaleDateString("en-US", {
+            {new Date(task.dueDate).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
               timeZone: "UTC",
@@ -142,7 +180,7 @@ function TaskCard({
             aria-label={`Move ${task.title} up`}
             onClick={() => move(task.id, task.status, index - 1)}
           >
-            <ArrowUp size={14} />
+            <ArrowUp size={14} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -152,7 +190,7 @@ function TaskCard({
             aria-label={`Move ${task.title} down`}
             onClick={() => move(task.id, task.status, index + 1)}
           >
-            <ArrowDown size={14} />
+            <ArrowDown size={14} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -165,12 +203,14 @@ function Column({
   tasks,
   editable,
   disabled,
+  dragTarget,
   move,
 }: {
   status: TaskStatus;
   tasks: BoardTask[];
   editable: boolean;
   disabled: boolean;
+  dragTarget: boolean;
   move: Move;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -179,7 +219,7 @@ function Column({
   });
   return (
     <section
-      className={`kanban-column column-${status.toLowerCase()}${isOver ? " is-over" : ""}`}
+      className={`kanban-column column-${status.toLowerCase()}${isOver ? " is-over" : ""}${dragTarget ? " drag-target" : ""}`}
       aria-label={statusLabels[status]}
     >
       <header>
@@ -190,6 +230,11 @@ function Column({
         <span className="column-count">{tasks.length}</span>
       </header>
       <div ref={setNodeRef} className="kanban-dropzone" data-column={status}>
+        {dragTarget && (
+          <div className="kanban-drop-indicator" aria-hidden="true">
+            Drop in {statusLabels[status]}
+          </div>
+        )}
         <SortableContext
           items={tasks.map((task) => task.id)}
           strategy={verticalListSortingStrategy}
@@ -231,7 +276,12 @@ export function KanbanBoard({
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [error, setError] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [creating, setCreating] = useState(false);
+  const createDialogRef = useModalDialog<HTMLElement>(creating, () =>
+    setCreating(false),
+  );
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [statusFilter, setStatusFilter] = useState(
     searchParams.get("status") ?? "",
@@ -284,6 +334,9 @@ export function KanbanBoard({
     query,
     statusFilter,
   ]);
+  const activeTask = activeTaskId
+    ? board.tasks.find((task) => task.id === activeTaskId)
+    : null;
 
   function syncFilters(next: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -398,7 +451,37 @@ export function KanbanBoard({
     }
   }
 
+  function onDragStart({ active, activatorEvent }: DragStartEvent) {
+    if (!(activatorEvent instanceof KeyboardEvent)) {
+      setActiveTaskId(String(active.id));
+    }
+  }
+
+  function statusFromTarget(id: string | number) {
+    return (
+      board.tasks.find((task) => task.id === id)?.status ??
+      taskStatuses.find((status) => status === id) ??
+      null
+    );
+  }
+
+  function onDragOver({ active, over }: DragOverEvent) {
+    if (!over) {
+      setDragOverStatus(null);
+      return;
+    }
+    const targetStatus = statusFromTarget(over.id);
+    const sourceStatus = board.tasks.find(
+      (task) => task.id === active.id,
+    )?.status;
+    setDragOverStatus(
+      targetStatus && targetStatus !== sourceStatus ? targetStatus : null,
+    );
+  }
+
   function onDragEnd({ active, over }: DragEndEvent) {
+    setActiveTaskId(null);
+    setDragOverStatus(null);
     if (!over || active.id === over.id) return;
     const target = board.tasks.find((task) => task.id === over.id);
     const status =
@@ -489,7 +572,7 @@ export function KanbanBoard({
             disabled={pending}
             onClick={() => void refresh()}
           >
-            <RefreshCw size={17} />
+            <RefreshCw size={17} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -580,7 +663,7 @@ export function KanbanBoard({
       </div>
       <div className="board-feedback">
         <span role="status" aria-live="polite">
-          {pending ? "Saving..." : announcement}
+          {pending ? "Saving…" : announcement}
         </span>
         {!canManage && <span>Read only</span>}
       </div>
@@ -608,6 +691,7 @@ export function KanbanBoard({
           }}
         >
           <section
+            ref={createDialogRef}
             className="task-create-dialog"
             role="dialog"
             aria-modal="true"
@@ -624,7 +708,7 @@ export function KanbanBoard({
                 aria-label="Close task form"
                 onClick={() => setCreating(false)}
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </header>
             <form onSubmit={create} className="task-create-form">
@@ -705,6 +789,12 @@ export function KanbanBoard({
         id={`board-${projectId}`}
         sensors={sensors}
         collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragCancel={() => {
+          setActiveTaskId(null);
+          setDragOverStatus(null);
+        }}
         onDragEnd={onDragEnd}
       >
         <div className="kanban-columns" aria-busy={pending}>
@@ -717,10 +807,19 @@ export function KanbanBoard({
                 .sort((a, b) => a.position - b.position)}
               editable={canManage && !hasFilters}
               disabled={pending || needsRefresh}
+              dragTarget={dragOverStatus === status}
               move={(...args) => void move(...args)}
             />
           ))}
         </div>
+        <DragOverlay
+          dropAnimation={{
+            duration: 180,
+            easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+          }}
+        >
+          {activeTask ? <DragTaskCard task={activeTask} /> : null}
+        </DragOverlay>
       </DndContext>
     </section>
   );
