@@ -1,18 +1,331 @@
-# WorkSphere
+# WorkSphere — Project Management and Collaboration
 
-A multi-tenant project management and collaboration app, built as a modular
-monolith. WorkSphere is the first project in the WorkSphere → KnowledgeOS →
-MarketForge sequence. Later projects will reuse proven infrastructure patterns.
+A production-minded, multi-tenant workspace application for planning projects,
+coordinating teams, and following delivery from one place. WorkSphere combines
+Kanban task management, realtime conversations, workspace analytics, role-based
+administration, notifications, billing controls, and immutable audit history in
+a modular Next.js monolith.
 
-**Current milestone: Day 16 - Redis caching and rate limits.**
+## Screenshots / Demo
 
-## Product tour
+| Workspace overview                                                      | Project delivery                                                       |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| ![WorkSphere workspace dashboard](docs/assets/worksphere-dashboard.png) | ![WorkSphere populated Kanban board](docs/assets/worksphere-board.png) |
 
-![WorkSphere application flow](docs/assets/worksphere-demo.gif)
+| People management                                                  | Billing and capacity                                               |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| ![WorkSphere people management](docs/assets/worksphere-people.png) | ![WorkSphere billing settings](docs/assets/worksphere-billing.png) |
 
-The seeded showcase follows a real workspace from its portfolio-level pulse to
-delivery details: teams can review workload and throughput, coordinate work on
-a visual board, and keep task decisions connected to the people making them.
+▶ **[Application walkthrough](#13-demo)** — registration → workspace pulse →
+project delivery → collaboration → administration.
+
+## Table of Contents
+
+1. [Problem](#1-problem)
+2. [Features](#2-features)
+3. [Tech Stack](#3-tech-stack)
+4. [Architecture](#4-architecture)
+5. [Database Schema](#5-database-schema)
+6. [API Documentation](#6-api-documentation)
+7. [Authentication Strategy](#7-authentication-strategy)
+8. [Security Considerations](#8-security-considerations)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Performance Considerations](#10-performance-considerations)
+11. [Deployment Architecture](#11-deployment-architecture)
+12. [Screenshots](#12-screenshots)
+13. [Demo](#13-demo)
+14. [What I Learned](#14-what-i-learned)
+15. [Future Improvements](#15-future-improvements)
+16. [Trade-offs & Design Decisions](#16-trade-offs--design-decisions)
+17. [Scaling Strategy](#17-scaling-strategy)
+
+## 1. Problem
+
+Project tools become difficult to trust when identity, authorization, delivery
+state, and communication are implemented as unrelated CRUD screens. A useful
+workspace has to answer harder questions:
+
+- **Tenant isolation** — can every query and mutation prove which workspace owns
+  the data?
+- **Concurrent planning** — what happens when two people reorder the same board?
+- **Permission clarity** — can owners, managers, members, and viewers do exactly
+  what their roles allow?
+- **Durable collaboration** — are chat, comments, notifications, and activity
+  history connected to authoritative database state?
+- **Operational visibility** — can a team understand workload, throughput,
+  subscription capacity, and sensitive changes without exporting everything?
+
+WorkSphere addresses these concerns while remaining a portfolio-sized modular
+monolith that can be run locally with PostgreSQL and optional Redis.
+
+## 2. Features
+
+**Planning and delivery**
+
+- Organization-scoped project directory with active and archived projects
+- Responsive Kanban boards with pointer and keyboard movement
+- Optimistic drag-and-drop with revision conflicts, rollback, and destination
+  feedback
+- Task priority, assignee, reporter, due date, status, position, and rich detail
+- Project membership, team ownership, filtering, search, and CSV analytics export
+- Task comments with editing, moderation, pagination, and `@mention` resolution
+
+**Collaboration and visibility**
+
+- Project and team conversations with persisted message history and read state
+- Socket.IO updates for chat, typing, tasks, comments, and notifications
+- Workspace and project activity timelines with cursor pagination
+- Assignment, mention, status-change, invitation, and reminder notifications
+- Per-user notification preferences and read/unread management
+- Workspace analytics for status distribution, throughput, active contributors,
+  and team activity
+
+**Workspace administration**
+
+- Multiple organizations per account with an active-workspace switcher
+- OWNER, ADMIN, MANAGER, MEMBER, and VIEWER roles
+- Team creation, membership management, invitations, and project access
+- Account, workspace, project, billing, and notification settings
+- Free, Pro, and Team plan entitlements with usage counters
+- Append-only tenant audit log for security-sensitive changes
+- Fully responsive application shell with accessible mobile navigation
+
+## 3. Tech Stack
+
+| Layer           | Choice                                 | Notes                                                                      |
+| --------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| Framework       | Next.js 16 App Router + React 19       | Server Components for data-heavy routes; client components for interaction |
+| Language        | TypeScript 5, strict mode              | Typed services, schemas, routes, events, and UI contracts                  |
+| Styling         | Hand-authored CSS                      | Responsive shell, locally hosted DM Sans and Manrope fonts                 |
+| Database        | PostgreSQL 17                          | Local Docker service with durable volume                                   |
+| ORM             | Prisma 7 + PostgreSQL adapter          | Transactions, scoped queries, generated client                             |
+| Validation      | Zod 4                                  | Environment, route input, query, and realtime event validation             |
+| Authentication  | Custom credentials + database sessions | `scrypt` password hashes and hashed session tokens                         |
+| Authorization   | Tenant guards + role permission matrix | Service-layer authorization, not presentation-only checks                  |
+| Cache / pub-sub | Redis 7, optional                      | Analytics caching, rate limits, and realtime publication                   |
+| Realtime        | Socket.IO                              | Authenticated user/project/team rooms over WebSocket                       |
+| Jobs            | BullMQ                                 | Email delivery queue and worker with local fallback behavior               |
+| Drag and drop   | dnd-kit                                | Pointer and keyboard sensors with persisted ordering                       |
+| Testing         | Node test runner + Playwright          | Unit, database integration, API smoke, and browser workflows               |
+
+## 4. Architecture
+
+WorkSphere is a modular monolith. Pages and route handlers stay thin; domain
+services own authorization and transaction boundaries; repositories contain
+explicitly scoped persistence queries.
+
+```text
+src/
+├── app/                  Next.js pages, layouts, route handlers, and error UI
+├── components/           Interactive product and settings components
+├── modules/              Auth, organizations, teams, projects, tasks, chat,
+│   ├── authorization/    notifications, analytics, billing, activity, audit
+│   └── */*.service.ts    Business rules and transaction boundaries
+├── database/             Prisma client factory and application singleton
+├── cache/                Redis cache policies and graceful fallbacks
+├── realtime/             Socket.IO gateway, room authorization, publisher
+├── queue/                BullMQ connection and email queue
+└── workers/              Background email processor
+```
+
+**Request flow — move a task across the board**
+
+```text
+Browser drag
+  → PATCH /api/projects/:projectId/board
+  → Zod validates task IDs, destination status, index, and board revision
+  → service verifies organization membership + projects:manage permission
+  → PostgreSQL transaction
+      1. conditionally increments Project.boardRevision
+      2. locks the move to the expected revision
+      3. normalizes source and destination positions
+      4. records activity and notifications
+  → committed board is returned
+  → best-effort Redis publication reaches authorized Socket.IO rooms
+  → conflicting clients refresh from PostgreSQL, the source of truth
+```
+
+Realtime delivery is deliberately best-effort. A missed WebSocket event never
+becomes data loss because REST reads and PostgreSQL remain authoritative.
+
+## 5. Database Schema
+
+Full schema: [`prisma/schema.prisma`](prisma/schema.prisma) — 24 models.
+Migration and design notes: [`docs/database.md`](docs/database.md).
+
+```mermaid
+erDiagram
+    User ||--o{ Membership : joins
+    Organization ||--o{ Membership : contains
+    Organization ||--o{ Team : groups
+    Organization ||--o{ Project : owns
+    Team ||--o{ TeamMembership : includes
+    Team o|--o{ Project : coordinates
+    Project ||--o{ Task : contains
+    Task ||--o{ Comment : discusses
+    Project ||--o| Conversation : has
+    Team ||--o| Conversation : has
+    Conversation ||--o{ ChatMessage : contains
+    Organization ||--o{ AuditEvent : records
+    Organization ||--o| BillingSubscription : subscribes
+```
+
+Key design points:
+
+- Every tenant-owned query includes an organization or project boundary.
+- Memberships are unique per `(organizationId, userId)`; team and project joins
+  use equivalent composite uniqueness.
+- `Project.boardRevision` provides optimistic concurrency control for Kanban
+  reordering.
+- Task indexes support board ordering, priority filters, assignee lookup, and
+  due-date queries.
+- Raw session, invitation, verification, and password-reset tokens are never
+  stored; only hashes are persisted.
+- Audit records are append-only at the database level.
+- Billing webhook event IDs are unique, making provider retries idempotent.
+- Timestamps use timezone-aware PostgreSQL columns and UUIDs are generated by
+  PostgreSQL.
+
+## 6. API Documentation
+
+Detailed contracts: [`docs/api.md`](docs/api.md). Responses use a consistent
+`data` / `meta` envelope and normalized application errors.
+
+| Method           | Route                                         | Guard / purpose                                       |
+| ---------------- | --------------------------------------------- | ----------------------------------------------------- |
+| POST             | `/api/auth/register`, `/login`, `/logout`     | Public registration/login; authenticated logout       |
+| POST             | `/api/auth/verify-email`, `/password-reset/*` | Hashed, expiring one-time token workflows             |
+| GET/POST         | `/api/organizations`                          | List memberships / create workspace                   |
+| PATCH/DELETE     | `/api/organizations/[id]`                     | Authorized workspace administration                   |
+| GET/POST         | `/api/teams`, `/api/teams/[id]/members`       | Tenant-scoped team management                         |
+| GET/POST         | `/api/projects`                               | Project directory / project creation                  |
+| GET/PATCH/DELETE | `/api/projects/[id]`                          | Project read and management                           |
+| GET/PATCH        | `/api/projects/[id]/board`                    | Read or atomically reorder Kanban tasks               |
+| GET/POST         | `/api/tasks`, `/api/tasks/[id]/comments`      | Task and comment workflows                            |
+| GET/PATCH/DELETE | `/api/comments/[id]`                          | Author editing and manager moderation                 |
+| GET              | `/api/search`                                 | Organization-scoped project and task search           |
+| GET              | `/api/analytics`, `/api/analytics/export`     | Filtered metrics and CSV export                       |
+| GET/POST         | `/api/chat/conversations/*`                   | Conversation history, messages, and read state        |
+| GET/POST         | `/api/notifications/*`                        | Inbox, preferences, and read state                    |
+| GET              | `/api/audit`                                  | Owner/admin tenant audit history                      |
+| GET/POST         | `/api/billing/*`                              | Subscription snapshot, checkout, portal, cancellation |
+| POST             | `/api/billing/webhooks/[provider]`            | Signed, idempotent subscription events                |
+| GET              | `/api/health?check=database`                  | Public liveness; optional database readiness          |
+
+## 7. Authentication Strategy
+
+- Passwords are derived with Node's `scrypt`, a unique 16-byte salt, and a
+  constant-time comparison.
+- Successful registration and login create opaque session tokens. Only a
+  SHA-256 token hash is stored in PostgreSQL.
+- Sessions use secure, HTTP-only cookie transport and explicit expiry.
+- Email verification and password resets use separate hashed, expiring,
+  single-use token types.
+- Authentication responses avoid account enumeration.
+- WebSocket connections reuse the session cookie, validate the request origin,
+  and authorize every requested project or team room.
+- Server-side guards are the source of truth; hiding a button never grants or
+  revokes permission.
+
+Role capabilities are intentionally asymmetric:
+
+| Role    | Typical capability                                                 |
+| ------- | ------------------------------------------------------------------ |
+| OWNER   | Full workspace lifecycle, members, projects, billing, and audit    |
+| ADMIN   | Workspace/member/project administration without ownership deletion |
+| MANAGER | Read members and manage projects/tasks                             |
+| MEMBER  | Read workspace/member data and collaborate                         |
+| VIEWER  | Read permitted workspace/project surfaces only                     |
+
+## 8. Security Considerations
+
+- **Tenant isolation** — service guards resolve membership before accessing
+  organization-owned records.
+- **Same-origin mutation checks** — state-changing API requests reject foreign
+  origins before service execution.
+- **Rate limits** — authentication and mutation limits use Redis when available
+  and an in-process fallback for local resilience.
+- **Hashed credentials and tokens** — password and bearer-equivalent values are
+  never stored in plaintext.
+- **Input validation** — strict Zod schemas reject unknown or malformed input at
+  route and realtime boundaries.
+- **Optimistic concurrency** — stale board revisions fail instead of silently
+  overwriting a teammate's changes.
+- **Webhook verification** — billing payloads require a configured signature and
+  unique provider event ID.
+- **Safe activity metadata** — response mapping exposes an action-specific
+  allowlist rather than arbitrary stored JSON.
+- **Immutable audit history** — database rules reject update and delete attempts
+  against audit records.
+- **Local-only demo seed** — seeding refuses production mode and non-loopback
+  database hosts.
+
+## 9. Testing Strategy
+
+```bash
+npm test            # focused unit/service tests
+npm run test:db     # disposable PostgreSQL integration suite
+npm run test:e2e    # Playwright application workflows
+npm run test:api    # production-server API smoke checks
+npm run check       # lint + format + schema + types + unit tests + build
+```
+
+The test suite covers:
+
+- Authentication, session handling, authorization, request security, and API
+  error contracts
+- Tenant isolation, foreign keys, SQL checks, cascades, and transaction rollback
+- Seed repeatability and preservation of user-edited records
+- Kanban ordering, empty-column moves, concurrent revision conflicts, and
+  rollback when an activity write fails
+- Comment ownership, manager moderation, mentions, and pagination
+- Realtime room contracts, chat history, read state, and cross-tenant denial
+- Billing entitlements, usage, and idempotent webhook handling
+- Responsive browser layouts and complete user-facing workflows
+
+Database tests create a randomly named database, apply the real migrations, run
+against it, and remove only that database during cleanup.
+
+## 10. Performance Considerations
+
+- Composite indexes match board, membership, notification, activity, message,
+  and audit pagination patterns.
+- Cursor pagination avoids increasingly expensive offsets for activity, chat,
+  comments, notifications, and audit history.
+- Analytics queries run independent aggregates in parallel.
+- Unfiltered analytics snapshots are cached in Redis with explicit invalidation;
+  PostgreSQL remains the fallback when Redis is unavailable.
+- Server Components keep data access on the server and reduce client-side fetch
+  waterfalls.
+- Realtime events carry small invalidation/change payloads rather than entire
+  tenant snapshots.
+- Search and filters retain URL state, making results linkable without a global
+  client store.
+
+## 11. Deployment Architecture
+
+The repository currently targets self-hosted or container-based deployment; no
+cloud vendor is required by the application design.
+
+```text
+Browser
+  ├── HTTPS → Next.js application (pages + REST API)
+  └── WSS   → Socket.IO gateway
+
+Next.js / gateway / worker
+  ├── PostgreSQL 17   authoritative application state
+  └── Redis 7         cache, rate limits, pub/sub, BullMQ
+
+Email worker
+  └── provider adapter / local preview delivery
+```
+
+Production requires HTTPS origins, independent secrets, managed PostgreSQL and
+Redis backups, a supervised worker and realtime process, and a hosted billing
+provider adapter. The built-in local billing provider exists for development and
+must not be used to charge customers.
+
+## 12. Screenshots
 
 <details open>
 <summary><strong>Getting started</strong></summary>
@@ -77,246 +390,144 @@ a visual board, and keep task decisions connected to the people making them.
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | ![WorkSphere account settings](docs/assets/worksphere-account-settings.png) | ![WorkSphere billing settings](docs/assets/worksphere-billing.png) |
 
-![WorkSphere audit log](docs/assets/worksphere-audit.png)
+![WorkSphere immutable audit history](docs/assets/worksphere-audit.png)
 
 </details>
 
-## Local setup
+## 13. Demo
 
-Prerequisites: Git, Docker with Compose (Docker Desktop on Windows), and Node.js
-**22.14+ within 22.x, or 24.x**, with npm. Start Docker before database setup.
-The development version is pinned in `.nvmrc`. On Windows, use `npm.cmd` in
-PowerShell if execution policy blocks `npm.ps1`; no policy change is required.
+![WorkSphere walkthrough — registration, workspace intelligence, project delivery, collaboration, and administration](docs/assets/worksphere-demo.gif)
 
-From a fresh clone, open a terminal at this repository's root (`worksphere/`):
+_Full tour: product home → registration → sign-in → workspace dashboard →
+projects → Kanban board → task detail → reports → teams → people → billing →
+audit history._
 
-```sh
+The media is generated from the real application with Playwright:
+
+```bash
+npm run demo:capture
+```
+
+## 14. What I Learned
+
+- **Tenant boundaries belong in services and queries.** A workspace selector is
+  presentation; organization-scoped guards are authorization.
+- **Optimistic concurrency makes collaborative ordering predictable.** A single
+  project revision turns silent board overwrites into recoverable conflicts.
+- **Persistence and realtime have different responsibilities.** PostgreSQL
+  commits the truth; Socket.IO improves latency but is safe to miss.
+- **Activity, notifications, and audit logs are separate products.** Activity
+  explains work, notifications request attention, and immutable audit records
+  support governance.
+- **Fallbacks require explicit semantics.** Optional Redis improves caching and
+  coordination without making core reads or authentication unavailable locally.
+- **Responsive navigation is functionality.** A sidebar that merely fits on a
+  small viewport is not useful unless it can be opened, trapped, dismissed, and
+  navigated by keyboard.
+
+## 15. Future Improvements
+
+- Replace the local billing adapter with Stripe or another hosted provider
+- Add object storage and malware scanning for chat attachments
+- Introduce full-text search with PostgreSQL `tsvector` or a dedicated service
+- Add recurring tasks, dependencies, milestones, and timeline views
+- Support organization SSO, SCIM provisioning, and enforced MFA
+- Add digest emails and configurable notification schedules
+- Add OpenTelemetry traces, structured metrics, and production dashboards
+- Add automated accessibility scans and visual regression snapshots to CI
+
+## 16. Trade-offs & Design Decisions
+
+| Decision                         | Trade-off                                          | Why                                                                               |
+| -------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Modular monolith                 | Domains share one deployment and database          | Fast iteration with clear service boundaries; extraction can follow real pressure |
+| Database sessions                | Session lookup on authenticated requests           | Immediate revocation and no authorization claims frozen inside a JWT              |
+| PostgreSQL as realtime authority | Clients may briefly refresh after a missed event   | Delivery failures cannot corrupt or erase durable state                           |
+| Project-wide board revision      | Unrelated simultaneous moves can conflict          | Simple, auditable consistency for a portfolio-scale board                         |
+| Hand-authored CSS                | More local style maintenance                       | Precise product identity and responsive behavior without framework coupling       |
+| Optional Redis                   | Local fallback is per-process and less coordinated | Core workflows remain usable without extra infrastructure                         |
+| Append-only audit records        | Corrections require compensating events            | Governance history cannot be silently rewritten                                   |
+| Local demo billing provider      | No real payments                                   | Complete plan/usage UI without external accounts or unsafe demo charges           |
+
+## 17. Scaling Strategy
+
+- **Application tier** — run multiple stateless Next.js instances behind a load
+  balancer; keep session and application state in PostgreSQL/Redis.
+- **Realtime tier** — use the Socket.IO Redis adapter so authorized rooms span
+  gateway instances.
+- **Read path** — add PostgreSQL read replicas for analytics and timeline reads;
+  retain primary reads where read-after-write consistency matters.
+- **Background work** — scale BullMQ workers independently and use idempotency
+  keys for every externally visible delivery.
+- **Search** — publish a tenant-scoped index feed to PostgreSQL full-text,
+  Typesense, or OpenSearch.
+- **Analytics** — move long-range aggregates into rollup tables or a warehouse
+  while keeping operational counts in PostgreSQL.
+- **Files** — upload directly to object storage with signed URLs and process
+  metadata asynchronously.
+- **Tenant growth** — partition high-volume activity, notification, message, and
+  audit tables by time or organization when measured query patterns require it.
+
+## Getting Started (Local)
+
+Prerequisites: Docker Desktop, Git, and Node.js 22.14+ within 22.x or Node.js
+24.x.
+
+```bash
 npm ci
 npm run setup
 npm run db:setup
 npm run dev
 ```
 
-Open <http://localhost:3000>. `setup` creates `.env.local`, or adds missing example
-keys while preserving existing values. `db:setup` starts PostgreSQL, generates
-Prisma Client, applies committed migrations, and runs the repeatable local seed.
-The first database start downloads the PostgreSQL image. No provider account or
-global Prisma CLI is needed. Stop the app with Ctrl+C; stop PostgreSQL with
-`npm run db:stop` (data is preserved).
+Open <http://localhost:3000>. To run realtime chat and queued email processing in
+separate terminals:
 
-For a one-line first run in a shell that supports `&&`:
-
-```sh
-npm ci && npm run setup && npm run db:setup && npm run dev
+```bash
+npm run infra:up
+npm run realtime
+npm run worker
 ```
 
-In Windows PowerShell 5, run the four commands on separate lines using
-`npm.cmd`. If port 3000 is busy, set `APP_URL=http://localhost:3001` in
-`.env.local`, then run `npm run dev -- --port 3001`.
+**Local demo account**
 
-### Production build locally
+- Email: `owner@worksphere.example`
+- Password: `WorkSphereDemo!2026`
 
-```sh
-npm run build
-npm run start
-```
+The repeatable seed creates a populated showcase with five users, three teams,
+four projects, eighteen tasks, comments, conversations, notifications, activity,
+billing usage, and audit history. It refuses production and non-loopback
+databases.
 
-This verifies the production server locally; cloud deployment is scheduled
-for a later milestone. Both development and production use port 3000 by default.
+## Environment
 
-## Commands
+Copy `.env.example` through `npm run setup`. Important variables:
 
-| Command                | Purpose                                                            |
-| ---------------------- | ------------------------------------------------------------------ |
-| `npm run setup`        | Create local environment configuration without overwriting it      |
-| `npm run dev`          | Start the development server                                       |
-| `npm run lint`         | Run Next.js/TypeScript lint rules, with zero warnings              |
-| `npm run format`       | Format source and documentation                                    |
-| `npm run format:check` | Verify formatting without editing files                            |
-| `npm run typecheck`    | Generate Next.js route types and check strict TypeScript           |
-| `npm test`             | Run environment, API, authentication, and RBAC unit tests          |
-| `npm run test:auth`    | Verify registration, login, logout, sessions, and protected access |
-| `npm run test:e2e`     | Run Playwright browser checks against the production server        |
-| `npm run build`        | Create the production build                                        |
-| `npm run start`        | Serve an existing production build                                 |
-| `npm run check`        | Run lint, formatting, typecheck, tests, and build in sequence      |
+| Variable                   | Required        | Purpose                                           |
+| -------------------------- | --------------- | ------------------------------------------------- |
+| `APP_URL`                  | Yes             | Canonical HTTP(S) origin                          |
+| `DATABASE_URL`             | Yes             | PostgreSQL connection URL and schema              |
+| `REDIS_URL`                | No              | Cache, rate-limit, pub/sub, and BullMQ connection |
+| `REDIS_DISABLED`           | No              | Force PostgreSQL/in-process fallbacks             |
+| `NEXT_PUBLIC_REALTIME_URL` | For realtime    | Browser-visible Socket.IO gateway origin          |
+| `REALTIME_PORT`            | For realtime    | Gateway listen port                               |
+| `EMAIL_DELIVERY_PREVIEW`   | Local/test only | Preview token-based email flows                   |
+| `BILLING_WEBHOOK_SECRET`   | Billing         | Webhook signature secret                          |
+| `BILLING_PROVIDER`         | No              | `local` for the built-in development adapter      |
 
-### Database commands
+## Scripts
 
-`npm run test:api` verifies the built app's HTTP routes, request logs, and
-database-failure behavior using temporary local production servers. Run
-`npm run check` and `npm run db:up` first. See the [API reference](docs/api.md).
+| Command                                       | Description                                               |
+| --------------------------------------------- | --------------------------------------------------------- |
+| `npm run dev` / `build` / `start`             | Next.js lifecycle                                         |
+| `npm run lint` / `format:check` / `typecheck` | Static quality gates                                      |
+| `npm test` / `test:db` / `test:e2e`           | Unit, disposable database, and browser suites             |
+| `npm run test:api` / `test:auth`              | Production API and authentication smoke checks            |
+| `npm run db:setup` / `db:deploy` / `db:seed`  | PostgreSQL migration and demo-data workflows              |
+| `npm run infra:up` / `infra:stop`             | PostgreSQL and Redis lifecycle                            |
+| `npm run realtime` / `worker`                 | Socket.IO gateway and BullMQ email worker                 |
+| `npm run demo:capture`                        | Rebuild README screenshots and animated walkthrough       |
+| `npm run check`                               | Full lint, format, schema, type, unit, and build pipeline |
 
-Authentication is available at `/login`, `/register`, and `/dashboard`.
-Organization, tenant isolation, RBAC, invitations, teams, projects, and tasks are documented in
-the [Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md),
-and [Day 9](docs/day-09.md), [Day 10](docs/day-10.md), [Day 11](docs/day-11.md), and
-[Day 12](docs/day-12.md), [Day 13](docs/day-13.md), [Day 14](docs/day-14.md),
-and [Day 15](docs/day-15.md) verification notes. [Day 16](docs/day-16.md)
-covers Redis caching and rate limits.
-
-| Command                                 | Purpose                                                             |
-| --------------------------------------- | ------------------------------------------------------------------- |
-| `npm run db:setup`                      | Start PostgreSQL, generate client, apply migrations, seed demo data |
-| `npm run db:up`                         | Start PostgreSQL and wait for its health check                      |
-| `npm run infra:up`                      | Start PostgreSQL and Redis with Docker Compose                      |
-| `npm run infra:stop`                    | Stop PostgreSQL and Redis while preserving their volumes            |
-| `npm run db:stop`                       | Stop PostgreSQL while preserving its named volume                   |
-| `npm run db:logs`                       | Show recent PostgreSQL logs                                         |
-| `npm run db:generate`                   | Regenerate the type-safe database client                            |
-| `npm run db:validate`                   | Validate Prisma schema and configuration                            |
-| `npm run db:migrate -- --name <change>` | Create/apply a new migration in development                         |
-| `npm run db:deploy`                     | Apply committed migrations without creating new ones                |
-| `npm run db:status`                     | Check migration status                                              |
-| `npm run db:seed`                       | Add missing demo records without resetting existing ones            |
-| `npm run db:check`                      | Verify connectivity and report model counts                         |
-| `npm run test:db`                       | Migrate and test a fresh disposable local database                  |
-| `npm run test:cache`                    | Verify Redis cache miss, hit, TTL, and invalidation                 |
-
-`check` includes schema validation but does not require a running database. Run
-`npm run test:db` after `npm run db:up` to verify actual database behavior.
-Development, builds, typechecking, and database tests generate Prisma Client
-automatically. Generated code is ignored by Git.
-
-The local seed creates a populated `Northstar Collective` showcase workspace.
-After `npm run db:seed`, sign in with `owner@worksphere.example` and
-`WorkSphereDemo!2026`. This credential is restricted to the loopback-only
-development seed and must not be used in a deployed environment.
-
-**Upgrading from Day 1:** run `npm ci`, `npm run setup`, and `npm run db:setup`.
-The setup helper adds `DATABASE_URL` without changing your existing `APP_URL`.
-
-Run `npm run setup` before `check`. The build does not run lint implicitly;
-the explicit commands follow the [Next.js installation guidance](https://nextjs.org/docs/app/getting-started/installation).
-Commit `package-lock.json` and use `npm ci` for repeatable installs.
-
-## Structure
-
-```text
-src/
-  app/                 Next.js App Router pages, layouts, and HTTP routes
-    api/health/        Public liveness endpoint
-  components/          Shared presentation components
-  config/              Typed environment validation
-  database/            Server-only Prisma factory and development singleton
-  generated/prisma/    Generated Prisma Client (ignored by Git)
-  lib/api/             Request boundary, responses, typed errors, validation
-  lib/logging/         Structured request completion logging
-  modules/             Domain features, added on their scheduled days
-    authorization/     Role and permission matrix plus server guards
-    organizations/     Tenant-scoped services and repositories
-    invitations/       Hashed invitation token lifecycle
-    teams/             Organization-scoped teams
-    notifications/     In-app notification service and delivery abstractions
-    cache/             Redis client, JSON cache helpers, and key policies
-    projects/          Organization/team-owned project services
-    tasks/             Project-owned task services and filters
-prisma/                Schema, versioned SQL migrations, and local seed
-scripts/               Local setup helpers
-tests/                 Focused foundation tests
-docs/                  Engineering decisions and milestone records
-```
-
-Use one Next.js application with its Node.js API layer. Keep routes thin and
-place future business logic in domain modules. Avoid shared packages until a
-second application proves a stable interface. TypeScript uses `strict` and
-`noUncheckedIndexedAccess`; `@/*` resolves to `src/*`.
-
-The responsive shell includes an overview, a protected dashboard, an active
-organization switcher, keyboard skip navigation, focus styles, reduced-motion
-support, and a custom 404. Its fonts are served locally from installed packages.
-Project detail pages include a responsive Kanban board with task creation,
-keyboard/pointer movement, persisted ordering, conflict recovery, and a
-cursor-paginated activity feed.
-Task detail pages include member comments with author-only editing, manager
-moderation, pagination, @mentions with autocomplete suggestions, and activity
-events.
-
-## Environment configuration
-
-| Variable       | Required       | Meaning                                                          |
-| -------------- | -------------- | ---------------------------------------------------------------- |
-| `APP_URL`      | Yes            | Application HTTP(S) origin, e.g. `http://localhost:3000`         |
-| `NODE_ENV`     | Set by Next.js | `development`, `test`, or `production`                           |
-| `DATABASE_URL` | Yes            | PostgreSQL URL; `.env.example` matches the local Compose service |
-
-Next.js loads environment files before `next.config.ts` validates them.
-Development startup, builds, and production startup fail for missing or invalid
-configuration. `APP_URL` must not contain credentials, a path, query, or fragment.
-It records the configured application origin; it does not choose the listening
-port. A deployed environment should use its HTTPS origin.
-
-Validation errors show field names only. Environment files are ignored by Git
-except `.env.example`. Keep server configuration out of client components; do
-not add secrets with a `NEXT_PUBLIC_` prefix. Prisma CLI and database scripts
-load the same environment files using `@next/env`. Provider settings arrive with
-their integrations.
-
-## Health endpoint
-
-```sh
-curl http://localhost:3000/api/health
-```
-
-Or in PowerShell: `Invoke-RestMethod http://localhost:3000/api/health`.
-
-`GET /api/health` returns HTTP 200 with `Cache-Control: no-store`:
-
-```json
-{
-  "data": {
-    "status": "ok",
-    "service": "worksphere",
-    "timestamp": "2026-09-15T00:00:00.000Z"
-  },
-  "meta": { "requestId": "9c7abddb-a568-4cc2-8b4e-b7d5cbb63f21" }
-}
-```
-
-The timestamp is generated for each request. This public endpoint checks
-application liveness only and exposes no configuration or credentials.
-Add `?check=database` for a minimal PostgreSQL connectivity check (200/503), or
-run `npm run db:check` for local model counts. Health fields now live under
-`data`; responses also include an `X-Request-ID` header matching `meta.requestId`.
-See [API contracts, validation, errors, and logging](docs/api.md).
-
-## Branching and contributions
-
-`main` is the stable branch. Create short-lived branches from it:
-
-```sh
-git switch -c feat/day-03-api-foundation
-```
-
-Use `feat/<scope>`, `fix/<scope>`, or `chore/<scope>`. Keep each branch focused on
-one milestone, run `npm run check`, and merge through a reviewed pull request
-once a remote exists. Use commit subjects such as
-`chore: establish day 1 foundation`. No `develop` branch is needed.
-
-Feature branches are merged into `main` through pull requests. Cloud deployment
-remains a later milestone. See [Day 1](docs/day-01.md), [Day 2](docs/day-02.md),
-[Day 3](docs/day-03.md), [Day 4](docs/day-04.md), [Day 5](docs/day-05.md),
-[Day 6](docs/day-06.md), [Day 7](docs/day-07.md), [Day 8](docs/day-08.md), and
-[database design and migration conventions](docs/database.md).
-
-## Next milestone
-
-Day 17 adds queues and workers. Redis-backed project caching and authentication
-rate limits are optional at runtime; requests fall back to PostgreSQL and
-in-process limits while Redis is unavailable.
-
-### Tooling compatibility
-
-ESLint 9 is used because the React and accessibility plugins bundled by
-`eslint-config-next` currently declare support through ESLint 9. npm may print
-its upstream end-of-support notice. Upgrade the lint toolchain together once
-those plugins support ESLint 10; do not bypass their peer constraints.
-
-Prisma CLI, Client, and the PostgreSQL adapter use stable 7.10.0. Scoped npm
-overrides update Prisma CLI's `deepmerge-ts` to 8.0.1 and `mysql2` to 3.24.0 to
-resolve upstream advisories. WorkSphere's Prisma config uses plain objects,
-so the Map-merging change in deepmerge-ts 8 does not affect it; the application
-uses PostgreSQL. Migration, generation, seed, and build checks validate this
-combination. Revisit the overrides when upgrading Prisma. See the
-[deepmerge-ts fix](https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0)
-and [MySQL driver release](https://github.com/sidorares/node-mysql2/releases/tag/v3.24.0).
+Additional implementation notes live in [`docs/`](docs/), including the API,
+authentication, database, and day-by-day verification records.
