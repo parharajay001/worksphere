@@ -55,7 +55,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
   return (
     <div className="product-shell">
       <header className="product-topbar">
-        <Brand />
+        <Brand href="/dashboard" label="WorkSphere dashboard" />
         <WorkspacePicker />
         <GlobalSearch />
         <div className="topbar-actions">
