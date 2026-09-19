@@ -45,7 +45,7 @@ function relativeDate(value: string) {
   if (age < 60_000) return "just now";
   if (age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
   if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
-  return new Date(value).toLocaleDateString("en-US", {
+  return new Date(value).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -74,11 +74,13 @@ export function ActivityFeed({
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
 
   async function loadMore() {
     if (!nextCursor || loading) return;
     setLoading(true);
     setError("");
+    setStatus("");
     try {
       const response = await fetch(
         `${endpoint}?limit=25&cursor=${encodeURIComponent(nextCursor)}`,
@@ -88,6 +90,7 @@ export function ActivityFeed({
       const result = (await response.json()) as { data: Page };
       setActivities((current) => [...current, ...result.data.activities]);
       setNextCursor(result.data.nextCursor);
+      setStatus("Older activity loaded.");
     } catch {
       setError("Activity could not be loaded. Try again.");
     } finally {
@@ -148,9 +151,12 @@ export function ActivityFeed({
           onClick={() => void loadMore()}
           disabled={loading}
         >
-          {loading ? "Loading..." : "Load older activity"}
+          {loading ? "Loading…" : "Load older activity"}
         </button>
       )}
+      <span className="sr-only" role="status" aria-live="polite">
+        {loading ? "Loading older activity…" : status}
+      </span>
     </section>
   );
 }

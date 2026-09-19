@@ -33,7 +33,7 @@ type Page = {
   readBy: ReadState[];
 };
 
-const chatTimeFormatter = new Intl.DateTimeFormat("en-US", {
+const chatTimeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -288,7 +288,8 @@ export function ConversationChat({
         >
           {pending === "history" ? (
             <>
-              <LoaderCircle className="spin" size={13} /> Loading history…
+              <LoaderCircle className="spin" size={13} aria-hidden="true" />{" "}
+              Loading history…
             </>
           ) : (
             "Load older messages"
@@ -325,7 +326,8 @@ export function ConversationChat({
                 </time>
                 {readers.length > 0 && (
                   <span title={readers.map((reader) => reader.name).join(", ")}>
-                    <CheckCheck size={12} /> Seen by {readers.length}
+                    <CheckCheck size={12} aria-hidden="true" /> Seen by{" "}
+                    {readers.length}
                   </span>
                 )}
               </div>
@@ -352,12 +354,14 @@ export function ConversationChat({
             onClick={() => void refreshLatest(true)}
             disabled={Boolean(pending)}
           >
-            <RefreshCw size={13} /> Retry
+            <RefreshCw size={13} aria-hidden="true" /> Retry
           </button>
         </div>
       )}
       <form className="chat-composer" onSubmit={send}>
         <input
+          name="message"
+          autoComplete="off"
           value={body}
           onChange={(event) => announceTyping(event.target.value)}
           maxLength={4000}
@@ -371,12 +375,21 @@ export function ConversationChat({
           aria-label="Send message"
         >
           {pending === "send" ? (
-            <LoaderCircle className="spin" size={17} />
+            <LoaderCircle className="spin" size={17} aria-hidden="true" />
           ) : (
-            <Send size={17} />
+            <Send size={17} aria-hidden="true" />
           )}
         </button>
       </form>
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending === "send"
+          ? "Sending message…"
+          : pending === "history"
+            ? "Loading older messages…"
+            : pending === "refresh"
+              ? "Refreshing chat…"
+              : ""}
+      </span>
     </section>
   );
 }

@@ -40,6 +40,7 @@ import {
   type TaskStatus,
 } from "@/modules/tasks/board";
 import { useRealtimeRoom } from "@/realtime/use-realtime-room";
+import { useModalDialog } from "@/lib/ui/use-modal-dialog";
 
 type Move = (id: string, status: TaskStatus, index: number) => void;
 type Member = { id: string; name: string; email: string };
@@ -110,7 +111,7 @@ function TaskCard({
         {task.dueDate && (
           <time dateTime={task.dueDate}>
             <CalendarDays size={13} aria-hidden="true" />
-            {new Date(task.dueDate).toLocaleDateString("en-US", {
+            {new Date(task.dueDate).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
               timeZone: "UTC",
@@ -142,7 +143,7 @@ function TaskCard({
             aria-label={`Move ${task.title} up`}
             onClick={() => move(task.id, task.status, index - 1)}
           >
-            <ArrowUp size={14} />
+            <ArrowUp size={14} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -152,7 +153,7 @@ function TaskCard({
             aria-label={`Move ${task.title} down`}
             onClick={() => move(task.id, task.status, index + 1)}
           >
-            <ArrowDown size={14} />
+            <ArrowDown size={14} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -232,6 +233,9 @@ export function KanbanBoard({
   const [error, setError] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [creating, setCreating] = useState(false);
+  const createDialogRef = useModalDialog<HTMLElement>(creating, () =>
+    setCreating(false),
+  );
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [statusFilter, setStatusFilter] = useState(
     searchParams.get("status") ?? "",
@@ -489,7 +493,7 @@ export function KanbanBoard({
             disabled={pending}
             onClick={() => void refresh()}
           >
-            <RefreshCw size={17} />
+            <RefreshCw size={17} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -580,7 +584,7 @@ export function KanbanBoard({
       </div>
       <div className="board-feedback">
         <span role="status" aria-live="polite">
-          {pending ? "Saving..." : announcement}
+          {pending ? "Saving…" : announcement}
         </span>
         {!canManage && <span>Read only</span>}
       </div>
@@ -608,6 +612,7 @@ export function KanbanBoard({
           }}
         >
           <section
+            ref={createDialogRef}
             className="task-create-dialog"
             role="dialog"
             aria-modal="true"
@@ -624,7 +629,7 @@ export function KanbanBoard({
                 aria-label="Close task form"
                 onClick={() => setCreating(false)}
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </header>
             <form onSubmit={create} className="task-create-form">

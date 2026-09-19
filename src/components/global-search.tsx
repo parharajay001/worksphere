@@ -8,6 +8,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { useModalDialog } from "@/lib/ui/use-modal-dialog";
 type Results = {
   projects: Array<{
     id: string;
@@ -33,6 +34,7 @@ export function GlobalSearch() {
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const dialog = useModalDialog<HTMLElement>(open, () => close());
   const items = useMemo(
     () => [
       ...results.projects.map((item) => ({
@@ -157,6 +159,7 @@ export function GlobalSearch() {
           }}
         >
           <section
+            ref={dialog}
             className="search-dialog"
             role="dialog"
             aria-modal="true"

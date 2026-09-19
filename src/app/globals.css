@@ -1166,6 +1166,7 @@ input[aria-invalid="true"] {
   width: min(720px, 100%);
   max-height: min(720px, 78vh);
   overflow: hidden;
+  overscroll-behavior: contain;
   border: 1px solid #8c9bab;
   border-radius: 12px;
   background: #fff;
@@ -1588,20 +1589,25 @@ input[aria-invalid="true"] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-block,
-  .route-loading-grid span {
-    animation: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   *,
   *::before,
   *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition: none !important;
   }
+}
+
+#analytics,
+#projects,
+#activity,
+#board,
+#chat,
+[id^="comment-"] {
+  scroll-margin-top: 88px;
 }
 
 .task-detail-page {
@@ -3719,6 +3725,11 @@ input[aria-invalid="true"] {
   font: 14px var(--body-font);
   text-transform: none;
   letter-spacing: 0;
+}
+.org-switcher-status {
+  min-height: 16px;
+  color: #ae2e24;
+  font-size: 11px;
 }
 
 /* Product UI refresh — a focused, issue-first operations console. */
