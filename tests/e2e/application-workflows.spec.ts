@@ -5,9 +5,11 @@ test("organization, invitation, team, project, and task APIs enforce the full wo
 }) => {
   const owner = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `workflow-owner-${Date.now()}` },
   });
   const member = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `workflow-member-${Date.now()}` },
   });
   const suffix = Date.now();
   const ownerEmail = `e2e-owner-${suffix}@example.test`;
@@ -208,6 +210,7 @@ test("project and task detail pages render for an authenticated user", async ({
   page,
 }) => {
   const email = `e2e-page-${Date.now()}@example.test`;
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": email });
   await page.goto("/register");
   await page.getByLabel("Name").fill("Page Tester");
   await page.getByLabel("Email").fill(email);

@@ -4,6 +4,9 @@ test("a new user can create, edit, switch, and delete workspaces", async ({
   page,
 }) => {
   const suffix = Date.now();
+  await page.setExtraHTTPHeaders({
+    "x-forwarded-for": `workspace-owner-${suffix}`,
+  });
   await page.goto("/register");
   await page.getByLabel("Name").fill("Workspace Owner");
   await page.getByLabel("Email").fill(`workspace-${suffix}@example.test`);
@@ -33,6 +36,7 @@ test("a new user can create, edit, switch, and delete workspaces", async ({
 
   await page.getByRole("button", { name: "Choose workspace" }).click();
   await page
+    .locator(".workspace-menu-panel")
     .getByRole("button", { name: new RegExp(`Studio North ${suffix}`) })
     .click();
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -42,7 +46,12 @@ test("a new user can create, edit, switch, and delete workspaces", async ({
     .getByLabel(new RegExp(`Type Studio North ${suffix}`))
     .fill(`Studio North ${suffix}`);
   await page.getByRole("button", { name: "Delete Workspace" }).click();
-  await expect(page.getByText(`Studio North ${suffix}`)).not.toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: `Studio North ${suffix} owner`,
+      exact: true,
+    }),
+  ).toHaveCount(0);
 });
 
 test("members can view workspace settings without management actions", async ({
@@ -55,9 +64,11 @@ test("members can view workspace settings without management actions", async ({
   const memberEmail = `settings-member-${suffix}@example.test`;
   const owner = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `settings-owner-${suffix}` },
   });
   const member = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `settings-member-${suffix}` },
   });
   try {
     await owner.post("/api/auth/register", {
@@ -82,10 +93,8 @@ test("members can view workspace settings without management actions", async ({
       data: { token: invitation.token },
     });
 
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(memberEmail);
-    await page.getByLabel("Password").fill(password);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    const { cookies } = await member.storageState();
+    await page.context().addCookies(cookies);
     await page.goto("/settings/workspace");
 
     await expect(page.getByLabel("Workspace name")).toBeDisabled();

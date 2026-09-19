@@ -286,6 +286,11 @@ The test suite covers:
 Database tests create a randomly named database, apply the real migrations, run
 against it, and remove only that database during cleanup.
 
+Playwright scenarios use isolated client identities for auth-rate-limit safety
+and a two-worker pool against the shared production server and local database.
+See the [Day 23 testing pass](docs/day-23.md) for the coverage inventory and
+verification results.
+
 ## 10. Performance Considerations
 
 - Composite indexes match board, membership, notification, activity, message,

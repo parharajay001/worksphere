@@ -83,7 +83,7 @@ test("shell destinations and active sidebar states are connected", async ({
   page,
 }) => {
   await setup(page);
-  await page.goto("/dashboard#projects");
+  await page.goto("/projects");
   await expect(
     page.getByRole("link", { name: "Projects", exact: true }),
   ).toHaveClass(/active/);

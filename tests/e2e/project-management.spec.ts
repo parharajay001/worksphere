@@ -5,11 +5,15 @@ test("project managers can create, edit, staff, archive, and delete a project", 
   playwright,
 }) => {
   const suffix = Date.now();
+  await page.setExtraHTTPHeaders({
+    "x-forwarded-for": `project-owner-${suffix}`,
+  });
   const password = "a secure browser password";
   const ownerEmail = `project-owner-${suffix}@example.test`;
   const memberEmail = `project-member-${suffix}@example.test`;
   const member = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `project-member-${suffix}` },
   });
   try {
     await page.goto("/register");
@@ -96,9 +100,13 @@ test("members cannot open project management settings", async ({
   const password = "a secure browser password";
   const owner = await playwright.request.newContext({
     baseURL: "http://localhost:3100",
+    extraHTTPHeaders: { "x-forwarded-for": `project-admin-${suffix}` },
   });
   const memberEmail = `restricted-project-${suffix}@example.test`;
   try {
+    await page.setExtraHTTPHeaders({
+      "x-forwarded-for": `restricted-member-${suffix}`,
+    });
     await owner.post("/api/auth/register", {
       data: {
         name: "Project Admin",

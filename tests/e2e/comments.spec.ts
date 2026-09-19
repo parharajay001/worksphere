@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("task detail comments support create, edit, delete, and load more", async ({
   page,
-}, testInfo) => {
-  test.setTimeout(60_000);
+}) => {
   const email = `comments-${Date.now()}@example.test`;
   await page.setExtraHTTPHeaders({
     "x-forwarded-for": `comments-test-${Date.now()}`,
@@ -55,20 +54,21 @@ test("task detail comments support create, edit, delete, and load more", async (
     await expect(
       page.getByText("A release update for the team."),
     ).toBeVisible();
-    const newest = page.locator(".comment").first();
-    await newest.getByRole("button", { name: /Edit comment by/ }).click();
-    await newest
+    const created = page.locator(".comment").filter({
+      hasText: "A release update for the team.",
+    });
+    await created.getByRole("button", { name: /Edit comment by/ }).click();
+    await page
       .getByLabel("Edit comment", { exact: true })
       .fill("Updated release update.");
-    await newest.getByRole("button", { name: "Save comment" }).click();
-    await expect(page.getByText("Updated release update.")).toBeVisible();
-    page.once("dialog", (dialog) => void dialog.accept());
-    await newest.getByRole("button", { name: /Delete comment by/ }).click();
-    await expect(page.getByText("Updated release update.")).toHaveCount(0);
-    await page.screenshot({
-      path: testInfo.outputPath("comments-task-detail.png"),
-      fullPage: true,
+    await page.getByRole("button", { name: "Save comment" }).click();
+    const updated = page.locator(".comment").filter({
+      hasText: "Updated release update.",
     });
+    await expect(updated).toBeVisible();
+    page.once("dialog", (dialog) => void dialog.accept());
+    await updated.getByRole("button", { name: /Delete comment by/ }).click();
+    await expect(page.getByText("Updated release update.")).toHaveCount(0);
   } finally {
     expect(
       (await page.request.delete(`/api/organizations/${org.id}`)).status(),

@@ -48,12 +48,10 @@ export default async function ProjectPage({
   });
   const messages = await listMessages(user.id, conversation.id, { limit: 30 });
   const canManage = hasPermission(membership.role, "projects:manage");
-  const organizationMembers = await getOrganizationMembers(
-    user.id,
-    project.organizationId,
-  );
   const members = canManage
-    ? organizationMembers.map(({ user: member }) => member)
+    ? (await getOrganizationMembers(user.id, project.organizationId)).map(
+        ({ user: member }) => member,
+      )
     : Array.from(
         new Map(
           board.tasks
@@ -121,7 +119,7 @@ export default async function ProjectPage({
           scope={{ kind: "project", id: project.id }}
           conversationId={conversation.id}
           currentUserId={user.id}
-          participants={organizationMembers.map(({ user: member }) => member)}
+          participants={members}
           initialPage={messages}
           title="Project chat"
         />
