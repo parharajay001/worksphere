@@ -12,6 +12,7 @@ test("registration creates a session and logout protects the dashboard", async (
   page,
 }) => {
   const email = `e2e-${Date.now()}@example.test`;
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": email });
   await page.goto("/register");
   await page.getByLabel("Name").fill("Browser Tester");
   await page.getByLabel("Email").fill(email);

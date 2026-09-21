@@ -5,6 +5,9 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
   browser,
 }, testInfo) => {
   test.setTimeout(100_000);
+  await page.setExtraHTTPHeaders({
+    "x-forwarded-for": `kanban-owner-${Date.now()}`,
+  });
   await page.goto("/register");
   await page.getByLabel("Name", { exact: true }).fill("Board Tester");
   await page
@@ -196,6 +199,9 @@ test("board supports persistent dragging, keyboard moves, rollback, and responsi
     });
     const readonly = await browser.newContext({
       baseURL: new URL(page.url()).origin,
+      extraHTTPHeaders: {
+        "x-forwarded-for": `kanban-viewer-${Date.now()}`,
+      },
     });
     try {
       expect((await readonly.request.get(endpoint)).status()).toBe(401);

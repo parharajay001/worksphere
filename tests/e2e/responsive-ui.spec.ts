@@ -23,6 +23,9 @@ for (const viewport of viewports) {
     page,
   }) => {
     test.setTimeout(90_000);
+    await page.setExtraHTTPHeaders({
+      "x-forwarded-for": `responsive-${viewport.name}-${Date.now()}`,
+    });
     await page.setViewportSize(viewport);
     for (const route of [
       "/",
